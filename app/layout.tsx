@@ -1,27 +1,32 @@
-import type React from "react"
-import type { Metadata } from "next"
-import { Poppins } from "next/font/google"
-import "./globals.css"
+import type React from "react";
+import type { Metadata } from "next";
+import { Poppins } from "next/font/google";
+import "./globals.css";
+import Providers from "./providers";
 
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
-})
+});
 
 export const metadata: Metadata = {
   title: "Observer Pattern Learning Platform",
-  description: "Learn the Observer Design Pattern through interactive exercises and assessments",
-    generator: 'v0.app'
-}
+  description:
+    "Learn the Observer Design Pattern through interactive exercises and assessments",
+  generator: "v0.app",
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
-      <body className={poppins.className}>{children}</body>
+      <body className={poppins.className}>
+        {" "}
+        <Providers>{children}</Providers>
+      </body>
     </html>
-  )
+  );
 }
