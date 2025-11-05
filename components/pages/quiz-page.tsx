@@ -1,154 +1,265 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { ChevronDown, ChevronUp, HelpCircle } from "lucide-react"
-import { Input } from "@/components/ui/input"
+import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useGetFinalQuestionsQuery } from "@/api/services/FinalQuiz";
+import Image from "next/image";
 
-interface QuizPageProps {
-  onNext: () => void
+type MCQuestionData = { options: unknown };
+type IdentifyErrorData = { code?: string; language?: string };
+type FillInBlankData = { blank?: string };
+type NormalizedOption = { id: string; text: string };
+
+const toStringSafe = (v: unknown): string => {
+  if (typeof v === "string") return v;
+  if (v && typeof v === "object" && "text" in (v as any))
+    return String((v as any).text);
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  return "";
+};
+
+const normalizeOptions = (opts: unknown): NormalizedOption[] => {
+  if (!Array.isArray(opts)) return [];
+  return opts.map((o, i) => {
+    if (typeof o === "string")
+      return { id: String.fromCharCode(65 + i), text: o };
+    if (o && typeof o === "object") {
+      const id = String((o as any).id ?? String.fromCharCode(65 + i));
+      const text = toStringSafe((o as any).text ?? (o as any).label ?? "");
+      return { id, text };
+    }
+    return { id: String.fromCharCode(65 + i), text: String(o ?? "") };
+  });
+};
+
+export interface QuizPageProps {
+  onNext: () => void;
 }
 
-const quizQuestions = [
-  {
-    id: 1,
-    type: "fill-in-blank",
-    title: "Question Type - Fill in the blank",
-    text: "The Observer pattern defines a one-to-",
-    blank: "_______",
-    fullText: " dependency so that when one object changes state, all its dependents are notified.",
-  },
-  {
-    id: 2,
-    type: "code-fix",
-    title: "Question Type - Code fix",
-    description: "There is an issue in the code below. Give the line and the fix to the code below.",
-    code: `1. class Subject {
-2.   std::vector<std::shared_ptr<Observer>> obs;
-3. public:
-4.   void subscribe(std::shared_ptr<Observer> o){ obs.push_back(o); }
-5. };`,
-  },
-  {
-    id: 3,
-    type: "multiple-choice",
-    title: "Question Type - Multiple choice",
-    text: "Best practice for Subject's list is:",
-    options: [
-      "A) std::unique_ptr<Observer>",
-      "B) std::shared_ptr<Observer>",
-      "C) Observer* raw owning",
-      "D) std::weak_ptr<Observer>",
-    ],
-  },
-]
-
 export function QuizPage({ onNext }: QuizPageProps) {
-  const [expandedQuestions, setExpandedQuestions] = useState<number[]>([])
+  const [expandedIds, setExpandedIds] = useState<number[]>([]);
 
-  const toggleExpand = (id: number) => {
-    setExpandedQuestions(
-      expandedQuestions.includes(id) ? expandedQuestions.filter((q) => q !== id) : [...expandedQuestions, id],
-    )
-  }
+  const { data, isLoading, isError, error } = useGetFinalQuestionsQuery({
+    page: 1,
+    pageSize: 20,
+    onlyActive: true,
+    formats: ["fill-in-blank", "multiple-choice", "identify-error"],
+    sortBy: "question_id",
+    ascending: true,
+  });
+
+  const questions = useMemo(() => {
+    const rows = data?.rows ?? [];
+    return rows.map((q) => {
+      const fmt = q.question_format;
+      const qd = (q.question_data ?? {}) as unknown;
+
+      if (fmt === "fill-in-blank") {
+        const jd = qd as FillInBlankData;
+        return {
+          id: q.question_id,
+          kind: "fill-in-blank" as const,
+          header: `Question ${q.question_id}`,
+          stem: toStringSafe(q.question_text),
+          blank: jd.blank ?? "_______",
+        };
+      }
+
+      if (fmt === "multiple-choice") {
+        const jd = qd as MCQuestionData;
+        return {
+          id: q.question_id,
+          kind: "multiple-choice" as const,
+          header: `Question ${q.question_id}`,
+          stem: toStringSafe(q.question_text),
+          options: normalizeOptions(jd?.options),
+        };
+      }
+
+      if (fmt === "identify-error") {
+        const jd = qd as IdentifyErrorData;
+        return {
+          id: q.question_id,
+          kind: "code-fix" as const,
+          header: `Question ${q.question_id}`,
+          description: toStringSafe(q.question_text),
+          code: jd?.code ?? "",
+        };
+      }
+
+      return {
+        id: q.question_id,
+        kind: "unsupported" as const,
+        header: `Question ${q.question_id}`,
+        typeLabel: "Unsupported",
+        stem: toStringSafe(q.question_text),
+        meta: `${q.section} • ${q.bloom_level} • ${q.difficulty_level}`,
+      };
+    });
+  }, [data]);
+
+  const toggle = (id: number) =>
+    setExpandedIds((s) =>
+      s.includes(id) ? s.filter((x) => x !== id) : [...s, id]
+    );
+
+  if (isLoading) return <div className="p-6">Loading questions…</div>;
+  if (isError)
+    return (
+      <div className="p-6 text-red-600">
+        Error: {String((error as any)?.error ?? error)}
+      </div>
+    );
+  if (!questions.length) return <div className="p-6">No questions found.</div>;
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Content */}
-      <div className="px-6 pb-8 max-w-7xl mx-auto pt-4">
-        <div className="space-y-4 mb-8">
-          {quizQuestions.map((question) => {
-            const isExpanded = expandedQuestions.includes(question.id)
-
+      <div className="px-4 sm:px-6 max-w-5xl mx-auto py-4">
+        <div className="space-y-3 sm:space-y-4 mb-20">
+          {questions.map((q, idx) => {
+            const open = expandedIds.includes(q.id);
             return (
               <Card
-                key={question.id}
-                className="border-2 border-teal-700 bg-white cursor-pointer hover:shadow-md transition"
+                key={q.id}
+                className="justify-center p-0 border-2 border-teal-700/80 bg-white rounded-xl overflow-hidden shadow-sm"
               >
                 <button
-                  onClick={() => toggleExpand(question.id)}
-                  className="w-full p-6 flex items-center justify-between"
+                  onClick={() => toggle(q.id)}
+                  className="w-full flex items-center justify-between p-[12px] text-left"
                 >
-                  <div className="flex items-start gap-4 text-left">
-                    <HelpCircle className="w-6 h-6 text-teal-700 flex-shrink-0 mt-1" />
-                    <h3 className="font-bold text-lg text-gray-900">{question.title}</h3>
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <Image
+                      src="/material-symbols_help.svg"
+                      alt=""
+                      width={32}
+                      height={32}
+                      priority
+                    />
+                    <span className="font-semibold text-slate-900">
+                      {`Question ${idx + 1}`}
+                    </span>
                   </div>
-                  {isExpanded ? (
-                    <ChevronUp className="text-teal-700 flex-shrink-0" />
+                  {open ? (
+                    <ChevronUp className="text-teal-700 w-5 h-5" />
                   ) : (
-                    <ChevronDown className="text-teal-700 flex-shrink-0" />
+                    <ChevronDown className="text-teal-700 w-5 h-5" />
                   )}
                 </button>
 
-                {isExpanded && (
-                  <div className="px-6 pb-6 border-t-2 border-teal-700 pt-6">
-                    {question.type === "fill-in-blank" && (
-                      <div>
-                        <p className="text-gray-800 mb-4">
-                          {question.text} <span className="border-b-2 border-teal-700 font-bold px-2">_______</span>{" "}
-                          {question.fullText}
-                        </p>
-                        <div className="mb-4">
-                          <label className="block text-teal-700 font-bold mb-2">Answer</label>
-                          <Input placeholder="Enter your answer" className="border-2 border-teal-700 rounded-lg" />
-                        </div>
-                      </div>
-                    )}
-
-                    {question.type === "code-fix" && (
-                      <div>
-                        <p className="text-gray-800 mb-4">{question.description}</p>
-                        <Card className="bg-teal-700 text-white p-4 font-mono text-sm mb-4 whitespace-pre overflow-x-auto rounded-lg">
-                          {question.code}
-                        </Card>
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-teal-700 font-bold mb-2">Line</label>
-                            <Input placeholder="Enter line number" className="border-2 border-teal-700 rounded-lg" />
-                          </div>
-                          <div>
-                            <label className="block text-teal-700 font-bold mb-2">Answer</label>
-                            <Input placeholder="Enter the fix" className="border-2 border-teal-700 rounded-lg" />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {question.type === "multiple-choice" && (
-                      <div>
-                        <p className="text-gray-800 mb-4 font-semibold">{question.text}</p>
-                        <div className="space-y-2 mb-4">
-                          {question.options?.map((option, idx) => (
-                            <label
-                              key={idx}
-                              className="flex items-center gap-3 p-3 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50"
-                            >
-                              <input type="radio" name={`question-${question.id}`} className="w-4 h-4" />
-                              <span className="text-gray-800">{option}</span>
-                            </label>
-                          ))}
-                        </div>
+                {open && (
+                  <div>
+                    <div className="px-4 sm:px-5 py-4">
+                      {q.kind === "fill-in-blank" && (
                         <div>
-                          <label className="block text-teal-700 font-bold mb-2">Answer</label>
-                          <Input placeholder="Enter your answer" className="border-2 border-teal-700 rounded-lg" />
+                          <p className="text-slate-800 mb-3 leading-relaxed">
+                            {q.stem}{" "}
+                            <span className="border-b-2 border-teal-700 font-bold px-2">
+                              {q.blank}
+                            </span>{" "}
+                          </p>
+                          <label className="block text-teal-700 font-semibold mb-1">
+                            Answer
+                          </label>
+                          <Input
+                            placeholder="Enter your answer"
+                            className="border-2 border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-600/40 rounded-lg"
+                          />
                         </div>
-                      </div>
-                    )}
+                      )}
+
+                      {q.kind === "code-fix" && (
+                        <div>
+                          <p className="text-slate-800 mb-3">{q.description}</p>
+                          <Card className="bg-teal-700 text-white p-4 font-mono text-xs sm:text-sm mb-4 whitespace-pre overflow-x-auto rounded-lg">
+                            {q.code}
+                          </Card>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-teal-700 font-semibold mb-1">
+                                Line
+                              </label>
+                              <Input
+                                placeholder="Enter line number"
+                                className="border-2 border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-600/40 rounded-lg"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-teal-700 font-semibold mb-1">
+                                Answer
+                              </label>
+                              <Input
+                                placeholder="Enter the fix"
+                                className="border-2 border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-600/40 rounded-lg"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {q.kind === "multiple-choice" && (
+                        <div>
+                          <p className="text-slate-900 font-semibold mb-3">
+                            {q.stem}
+                          </p>
+
+                          <div className="mb-5">
+                            {(q as any).options?.map(
+                              (
+                                opt: { id: string; text: string },
+                                idx: number
+                              ) => (
+                                <p
+                                  key={opt.id}
+                                  className="text-slate-800 leading-7"
+                                >
+                                  <span className="font-semibold mr-1">
+                                    {String.fromCharCode(65 + idx)})
+                                  </span>
+                                  {opt.text}
+                                </p>
+                              )
+                            )}
+                          </div>
+
+                          <label className="block text-teal-700 font-bold mb-1">
+                            Answer
+                          </label>
+                          <Input
+                            placeholder="Enter your answer"
+                            className="border-2 border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-600/40 rounded-lg"
+                          />
+                        </div>
+                      )}
+
+                      {q.kind === "unsupported" && (
+                        <div className="text-slate-700">
+                          Unsupported format. Check <code>question_format</code>{" "}
+                          for this row.
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </Card>
-            )
+            );
           })}
         </div>
+      </div>
 
-        <Button
-          onClick={onNext}
-          className="w-full bg-teal-700 text-white hover:bg-teal-800 font-bold py-3 rounded-lg text-lg"
-        >
-          Continue to Results
-        </Button>
+      <div className="sticky bottom-0 left-0 right-0 bg-white backdrop-blur border-t border-slate-200">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex justify-end">
+          <Button
+            onClick={onNext}
+            className="bg-teal-700 hover:bg-teal-800 text-white font-bold px-6 py-2 rounded-lg"
+          >
+            Continue
+          </Button>
+        </div>
       </div>
     </div>
-  )
+  );
 }
