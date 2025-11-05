@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
 interface StudentHeaderProps {
-  userName: string
-  onLogout: () => void
+  userName: string;
+  onLogout: () => void;
 }
 
 export function StudentHeader({ userName, onLogout }: StudentHeaderProps) {
@@ -10,8 +10,9 @@ export function StudentHeader({ userName, onLogout }: StudentHeaderProps) {
     <header className="bg-teal-700 text-white shadow-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Observer Pattern Learning Platform</h1>
-          <p className="text-sm text-blue-100">Master design patterns through interactive learning</p>
+          <h1 className="text-2xl font-bold">
+            Observer Pattern Learning Platform
+          </h1>
         </div>
         <div className="flex items-center gap-6">
           <div className="text-right">
@@ -27,5 +28,5 @@ export function StudentHeader({ userName, onLogout }: StudentHeaderProps) {
         </div>
       </div>
     </header>
-  )
+  );
 }

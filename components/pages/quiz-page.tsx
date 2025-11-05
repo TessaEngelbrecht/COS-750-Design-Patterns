@@ -3,13 +3,18 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useGetFinalQuestionsQuery } from "@/api/services/FinalQuiz";
 import Image from "next/image";
+import { Spinner } from "../ui/spinner";
 
-type MCQuestionData = { options: unknown };
-type IdentifyErrorData = { code?: string; language?: string };
+type MCQuestionData = { options?: unknown };
+type IdentifyErrorData = {
+  code?: string;
+  code_snippet?: string;
+  language?: string;
+};
 type FillInBlankData = { blank?: string };
 type NormalizedOption = { id: string; text: string };
 
@@ -35,12 +40,29 @@ const normalizeOptions = (opts: unknown): NormalizedOption[] => {
   });
 };
 
+function CodeBlock({ code }: { code: string }) {
+  const raw = typeof code === "string" ? code : "";
+  const lines = raw.replace(/\r/g, "").split("\n");
+  const digits = String(lines.length).length;
+
+  const numbered = lines
+    .map((ln, i) => `${String(i + 1).padStart(digits, " ")}. ${ln ?? ""}`)
+    .join("\n");
+
+  return (
+    <pre className="m-0 rounded-lg bg-teal-700 p-3 font-mono text-sm italic leading-5 text-white whitespace-pre">
+      <code>{numbered}</code>
+    </pre>
+  );
+}
+
 export interface QuizPageProps {
   onNext: () => void;
 }
 
 export function QuizPage({ onNext }: QuizPageProps) {
   const [expandedIds, setExpandedIds] = useState<number[]>([]);
+  const [mcAnswers, setMcAnswers] = useState<Record<number, string>>({});
 
   const { data, isLoading, isError, error } = useGetFinalQuestionsQuery({
     page: 1,
@@ -53,8 +75,8 @@ export function QuizPage({ onNext }: QuizPageProps) {
 
   const questions = useMemo(() => {
     const rows = data?.rows ?? [];
-    return rows.map((q) => {
-      const fmt = q.question_format;
+    return rows.map((q: any) => {
+      const fmt: string = q.question_format;
       const qd = (q.question_data ?? {}) as unknown;
 
       if (fmt === "fill-in-blank") {
@@ -70,23 +92,32 @@ export function QuizPage({ onNext }: QuizPageProps) {
 
       if (fmt === "multiple-choice") {
         const jd = qd as MCQuestionData;
+        const options = normalizeOptions(
+          (jd as any)?.options ?? (q as any).options
+        );
         return {
           id: q.question_id,
           kind: "multiple-choice" as const,
           header: `Question ${q.question_id}`,
           stem: toStringSafe(q.question_text),
-          options: normalizeOptions(jd?.options),
+          options,
         };
       }
 
       if (fmt === "identify-error") {
         const jd = qd as IdentifyErrorData;
+        const raw =
+          (q as any).code_snippet ??
+          jd?.code_snippet ??
+          jd?.code ??
+          (q as any).code ??
+          "";
         return {
           id: q.question_id,
           kind: "code-fix" as const,
           header: `Question ${q.question_id}`,
           description: toStringSafe(q.question_text),
-          code: jd?.code ?? "",
+          code: String(raw),
         };
       }
 
@@ -105,8 +136,10 @@ export function QuizPage({ onNext }: QuizPageProps) {
     setExpandedIds((s) =>
       s.includes(id) ? s.filter((x) => x !== id) : [...s, id]
     );
+  const setMC = (qid: number, val: string) =>
+    setMcAnswers((s) => ({ ...s, [qid]: val }));
 
-  if (isLoading) return <div className="p-6">Loading questions…</div>;
+  if (isLoading) return <Spinner />;
   if (isError)
     return (
       <div className="p-6 text-red-600">
@@ -117,10 +150,11 @@ export function QuizPage({ onNext }: QuizPageProps) {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="px-4 sm:px-6 max-w-5xl mx-auto py-4">
-        <div className="space-y-3 sm:space-y-4 mb-20">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 py-4">
+        <div className="mb-20 space-y-3 sm:space-y-4">
           {questions.map((q, idx) => {
             const open = expandedIds.includes(q.id);
+
             return (
               <Card
                 key={q.id}
@@ -138,62 +172,60 @@ export function QuizPage({ onNext }: QuizPageProps) {
                       height={32}
                       priority
                     />
-                    <span className="font-semibold text-slate-900">
-                      {`Question ${idx + 1}`}
-                    </span>
+                    <span className="font-semibold text-slate-900">{`Question ${
+                      idx + 1
+                    }`}</span>
                   </div>
                   {open ? (
-                    <ChevronUp className="text-teal-700 w-5 h-5" />
+                    <ChevronUp className="h-5 w-5 text-teal-700" />
                   ) : (
-                    <ChevronDown className="text-teal-700 w-5 h-5" />
+                    <ChevronDown className="h-5 w-5 text-teal-700" />
                   )}
                 </button>
 
                 {open && (
                   <div>
-                    <div className="px-4 sm:px-5 py-4">
+                    <div className="px-4 pb-4 sm:px-5">
                       {q.kind === "fill-in-blank" && (
                         <div>
-                          <p className="text-slate-800 mb-3 leading-relaxed">
-                            {q.stem}{" "}
-                            <span className="border-b-2 border-teal-700 font-bold px-2">
-                              {q.blank}
-                            </span>{" "}
+                          <p className="mb-3 leading-relaxed text-slate-800">
+                            {q.stem}
                           </p>
-                          <label className="block text-teal-700 font-semibold mb-1">
+                          <label className="mb-1 block font-semibold text-teal-700">
                             Answer
                           </label>
                           <Input
                             placeholder="Enter your answer"
-                            className="border-2 border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-600/40 rounded-lg"
+                            className="rounded-lg border-2 border-teal-700"
                           />
                         </div>
                       )}
 
                       {q.kind === "code-fix" && (
                         <div>
-                          <p className="text-slate-800 mb-3">{q.description}</p>
-                          <Card className="bg-teal-700 text-white p-4 font-mono text-xs sm:text-sm mb-4 whitespace-pre overflow-x-auto rounded-lg">
-                            {q.code}
-                          </Card>
+                          <p className="mb-3 text-slate-800">{q.description}</p>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="mb-4">
+                            <CodeBlock code={q.code} />
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div>
-                              <label className="block text-teal-700 font-semibold mb-1">
+                              <label className="mb-1 block font-semibold text-teal-700">
                                 Line
                               </label>
                               <Input
                                 placeholder="Enter line number"
-                                className="border-2 border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-600/40 rounded-lg"
+                                className="rounded-lg border-2 border-teal-700"
                               />
                             </div>
                             <div>
-                              <label className="block text-teal-700 font-semibold mb-1">
+                              <label className="mb-1 block font-semibold text-teal-700">
                                 Answer
                               </label>
                               <Input
                                 placeholder="Enter the fix"
-                                className="border-2 border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-600/40 rounded-lg"
+                                className="rounded-lg border-2 border-teal-700"
                               />
                             </div>
                           </div>
@@ -201,38 +233,49 @@ export function QuizPage({ onNext }: QuizPageProps) {
                       )}
 
                       {q.kind === "multiple-choice" && (
-                        <div>
-                          <p className="text-slate-900 font-semibold mb-3">
+                        <fieldset className="space-y-4">
+                          <legend className="mb-3 font-semibold text-slate-900">
                             {q.stem}
-                          </p>
+                          </legend>
 
-                          <div className="mb-5">
+                          <div className="grid gap-3">
                             {(q as any).options?.map(
                               (
                                 opt: { id: string; text: string },
-                                idx: number
-                              ) => (
-                                <p
-                                  key={opt.id}
-                                  className="text-slate-800 leading-7"
-                                >
-                                  <span className="font-semibold mr-1">
-                                    {String.fromCharCode(65 + idx)})
-                                  </span>
-                                  {opt.text}
-                                </p>
-                              )
+                                i: number
+                              ) => {
+                                const inputId = `q-${q.id}-${opt.id}`;
+                                const name = `q-${q.id}`;
+                                const checked = mcAnswers[q.id] === opt.id;
+                                return (
+                                  <label
+                                    key={opt.id}
+                                    htmlFor={inputId}
+                                    className="flex items-center gap-3 rounded-lg border border-gray-300 p-3 cursor-pointer transition hover:border-teal-400"
+                                  >
+                                    <input
+                                      id={inputId}
+                                      type="radio"
+                                      name={name}
+                                      value={opt.id}
+                                      checked={checked}
+                                      onChange={(e) =>
+                                        setMC(q.id, e.target.value)
+                                      }
+                                      className="h-4 w-4 accent-[#007B7C]"
+                                    />
+                                    <span className="text-slate-800">
+                                      <span className="mr-2 font-semibold">
+                                        {String.fromCharCode(65 + i)}.
+                                      </span>
+                                      {opt.text}
+                                    </span>
+                                  </label>
+                                );
+                              }
                             )}
                           </div>
-
-                          <label className="block text-teal-700 font-bold mb-1">
-                            Answer
-                          </label>
-                          <Input
-                            placeholder="Enter your answer"
-                            className="border-2 border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-600/40 rounded-lg"
-                          />
-                        </div>
+                        </fieldset>
                       )}
 
                       {q.kind === "unsupported" && (
@@ -250,11 +293,11 @@ export function QuizPage({ onNext }: QuizPageProps) {
         </div>
       </div>
 
-      <div className="sticky bottom-0 left-0 right-0 bg-white backdrop-blur border-t border-slate-200">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex justify-end">
+      <div className="sticky bottom-0 left-0 right-0 border-t border-slate-200 bg-white backdrop-blur">
+        <div className="mx-auto flex max-w-5xl justify-end px-4 py-3 sm:px-6">
           <Button
             onClick={onNext}
-            className="bg-teal-700 hover:bg-teal-800 text-white font-bold px-6 py-2 rounded-lg"
+            className="rounded-lg bg-teal-700 px-6 py-2 font-bold text-white hover:bg-teal-800"
           >
             Continue
           </Button>
