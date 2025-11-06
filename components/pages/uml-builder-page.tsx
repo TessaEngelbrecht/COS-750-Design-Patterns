@@ -1,31 +1,25 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useEffect, ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { HelpCircle, Info, Trash2, Plus, ChevronDown } from "lucide-react"
+import { HelpCircle, ChevronDown, Trash2, Plus, Monitor } from "lucide-react"
 import {
   ReactFlow,
   Controls,
   Background,
   applyNodeChanges,
   applyEdgeChanges,
-  addEdge,
   MarkerType,
   Node,
   Edge,
   NodeChange,
   EdgeChange,
-  Connection,
   Handle,
   Position,
   useReactFlow,
   ReactFlowProvider,
-  BaseEdge,
-  EdgeLabelRenderer,
-  getBezierPath,
-  useXYPack,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
@@ -36,6 +30,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+
+// Type definitions
+interface UMLNodeData extends Record<string, unknown> {
+  label: string
+  attributes: string[]
+  methods: string[]
+  classType: string
+  className: string
+  handleNodeSelect: (className: string) => void
+}
+
+interface UMLEdgeData extends Record<string, unknown> {
+  relationType: string
+  sourceClass: string
+  targetClass: string
+  edgeStyle?: string
+}
+
 
 interface UMLBuilderPageProps {
   onNext: () => void
@@ -117,33 +129,30 @@ const METHOD_EXAMPLES = [
   "# protectedMethod(param: String): boolean"
 ]
 
-// Custom node component for UML classes with Handle
-const UMLClassNode = ({ data, isSelected }: any) => {
+// Custom node component for UML classes
+const UMLClassNode = ({ data }: { data: UMLNodeData }) => {
   const { label, attributes = [], methods = [], classType, handleNodeSelect } = data
 
   return (
     <div 
-      onClick={() => handleNodeSelect?.(label)}
+      onClick={() => handleNodeSelect(label)}
       className={`bg-blue-100 border-2 rounded-lg shadow-lg min-w-[180px] max-w-[240px] cursor-pointer transition-all hover:shadow-xl ${
-        isSelected 
-          ? 'border-4 border-green-500 ring-2 ring-green-400' 
+        classType === 'abstract' 
+          ? 'border-4 border-blue-600' 
           : 'border-blue-800 hover:border-blue-600'
       }`}
     >
-      {/* Handles for connections - all 4 sides */}
       <Handle type="target" position={Position.Top} />
       <Handle type="source" position={Position.Bottom} />
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
 
-      {/* Class name header */}
       <div className="bg-blue-200 border-b-2 border-blue-800 px-3 py-2 text-center font-bold text-sm">
-        {classType === 'interface' && <div className="text-xs text-gray-600 font-normal">«interface»</div>}
-        {classType === 'abstract' && <div className="text-xs text-gray-600 font-normal">«abstract»</div>}
+        {classType === 'interface' && <div className="text-xs text-gray-600 font-normal">interface</div>}
+        {classType === 'abstract' && <div className="text-xs text-gray-600 font-normal">abstract</div>}
         <div className={classType === 'abstract' ? 'italic' : ''}>{label}</div>
       </div>
 
-      {/* Attributes section */}
       {attributes && attributes.length > 0 && (
         <div className="border-b-2 border-blue-800 px-3 py-1">
           {attributes.map((attr: string, idx: number) => (
@@ -152,7 +161,6 @@ const UMLClassNode = ({ data, isSelected }: any) => {
         </div>
       )}
 
-      {/* Methods section */}
       {methods && methods.length > 0 && (
         <div className="px-3 py-1">
           {methods.map((method: string, idx: number) => (
@@ -161,7 +169,6 @@ const UMLClassNode = ({ data, isSelected }: any) => {
         </div>
       )}
 
-      {/* Empty state */}
       {(!attributes || attributes.length === 0) && (!methods || methods.length === 0) && (
         <div className="px-3 py-2 text-center text-gray-500 text-xs italic">
           Add details
@@ -175,16 +182,83 @@ const nodeTypes = {
   umlClass: UMLClassNode,
 }
 
-// Internal component that uses useReactFlow - MUST be inside ReactFlowProvider
+// Screen size checker
+function ScreenSizeChecker({ children }: { children: ReactNode }) {
+  const [isValidSize, setIsValidSize] = useState(true)
+
+  useEffect(() => {
+    const checkSize = () => {
+      const width = window.innerWidth
+      const height = window.innerHeight
+      const isLandscapeTablet = width >= 768 && width > height
+      const isDesktop = width >= 1024
+      
+      setIsValidSize(isDesktop || isLandscapeTablet)
+    }
+
+    checkSize()
+    window.addEventListener('resize', checkSize)
+    return () => window.removeEventListener('resize', checkSize)
+  }, [])
+
+  if (!isValidSize) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex items-center justify-center p-6">
+        <Card className="max-w-md p-8 text-center shadow-xl">
+          <div className="mb-6 flex justify-center">
+            <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center">
+              <Monitor className="w-10 h-10 text-teal-700" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold text-teal-700 mb-4">
+            Desktop or Tablet Required
+          </h2>
+          <p className="text-gray-600 mb-6">
+            The UML Builder requires a larger screen for the best experience. 
+            Please switch to:
+          </p>
+          <div className="space-y-3 text-left bg-blue-50 p-4 rounded-lg mb-6">
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 bg-teal-700 text-white rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold">
+                OK
+              </div>
+              <div>
+                <p className="font-semibold text-gray-800">Desktop Computer</p>
+                <p className="text-sm text-gray-600">Any desktop or laptop</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 bg-teal-700 text-white rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold">
+                OK
+              </div>
+              <div>
+                <p className="font-semibold text-gray-800">Tablet in Landscape</p>
+                <p className="text-sm text-gray-600">Rotate your tablet horizontally</p>
+              </div>
+            </div>
+          </div>
+          <p className="text-sm text-gray-500 italic">
+            Current screen is too small for the interactive UML diagram editor
+          </p>
+        </Card>
+      </div>
+    )
+  }
+
+  return <>{children}</>
+}
+
+// Main content component
 function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
   const { fitView } = useReactFlow()
+  
   const [selectedClass, setSelectedClass] = useState<string | null>(null)
   const [classAttributes, setClassAttributes] = useState<Record<string, string[]>>({})
   const [classMethods, setClassMethods] = useState<Record<string, string[]>>({})
   const [attributeInput, setAttributeInput] = useState("")
   const [methodInput, setMethodInput] = useState("")
   const [validationErrors, setValidationErrors] = useState<string[]>([])
-  const [helpDialog, setHelpDialog] = useState<{open: boolean, content: string, title: string}>({
+  const [helpDialog, setHelpDialog] = useState({
     open: false,
     content: "",
     title: ""
@@ -194,29 +268,32 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
   const [expandedHelp, setExpandedHelp] = useState<string | null>(null)
   const [selectedEdgeStyle, setSelectedEdgeStyle] = useState<string>("smoothstep")
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
-  
-  const [nodes, setNodes] = useState<Node[]>([])
-  const [edges, setEdges] = useState<Edge[]>([])
+const [nodes, setNodes] = useState<Node[]>([])
+const [edges, setEdges] = useState<Edge[]>([])
+
   const [selectedRelationType, setSelectedRelationType] = useState<string>("inheritance")
   const [connectMode, setConnectMode] = useState(false)
   const [firstNodeId, setFirstNodeId] = useState<string | null>(null)
   const classCounterRef = useRef<Record<string, number>>({})
 
-  // Use refs to capture current input values at time of adding
   const attributeInputRef = useRef<string>("")
   const methodInputRef = useRef<string>("")
 
-  const onNodesChange = useCallback(
-    (changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)),
-    []
-  )
+ const onNodesChange = useCallback(
+  (changes: NodeChange[]) => {
+    setNodes((nds) => applyNodeChanges(changes, nds) as Node[])
+  },
+  []
+)
 
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-    []
-  )
+const onEdgesChange = useCallback(
+  (changes: EdgeChange[]) => {
+    setEdges((eds) => applyEdgeChanges(changes, eds) as Edge[])
+  },
+  []
+)
 
-  // Handle node click to select class for editing
+
   const handleNodeSelect = useCallback((className: string) => {
     if (connectMode) {
       const nodeId = nodes.find(n => n.data.className === className)?.id
@@ -235,7 +312,6 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
     }
   }, [connectMode, firstNodeId, nodes])
 
-  // Create a connection between two nodes
   const createConnection = (sourceId: string, targetId: string) => {
     const sourceNode = nodes.find(n => n.id === sourceId)
     const targetNode = nodes.find(n => n.id === targetId)
@@ -287,7 +363,6 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
     showHelp("Connected!", `${sourceNode.data.className} connected to ${targetNode.data.className}\n\nClick an edge to change its routing style!`)
   }
 
-  // Add class to canvas with instant click
   const addClassToCanvas = (className: string, classType: string) => {
     const count = (classCounterRef.current[className] || 0) + 1
     classCounterRef.current[className] = count
@@ -305,6 +380,7 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
     const position = positions[nodes.length % positions.length]
 
     const newNode: Node = {
+
       id: newId,
       type: 'umlClass',
       position,
@@ -325,7 +401,6 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
     setTimeout(() => fitView({ padding: 0.2 }), 0)
   }
 
-  // Update edge style
   const updateEdgeStyle = (edgeId: string, newStyle: string) => {
     setEdges((eds) =>
       eds.map((edge) => {
@@ -333,8 +408,13 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
           return {
             ...edge,
             type: newStyle,
-            data: {
+            data: edge.data ? {
               ...edge.data,
+              edgeStyle: newStyle,
+            } : {
+              relationType: 'association',
+              sourceClass: '',
+              targetClass: '',
               edgeStyle: newStyle,
             }
           }
@@ -344,27 +424,6 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
     )
   }
 
-  // Update nodes when class data changes
-  const updateNodesData = (className: string) => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.data.className === className) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              attributes: classAttributes[className] || [],
-              methods: classMethods[className] || [],
-              handleNodeSelect,
-            },
-          }
-        }
-        return node
-      })
-    )
-  }
-
-  // Add attribute
   const handleAddAttribute = () => {
     if (!selectedClass) {
       showHelp(
@@ -418,7 +477,6 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
     setAttributeInput("")
   }
 
-  // Add method
   const handleAddMethod = () => {
     if (!selectedClass) {
       showHelp(
@@ -472,7 +530,6 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
     setMethodInput("")
   }
 
-  // Remove an attribute
   const removeAttribute = (className: string, index: number) => {
     setClassAttributes(prev => {
       const updated = {
@@ -500,7 +557,6 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
     })
   }
 
-  // Remove a method
   const removeMethod = (className: string, index: number) => {
     setClassMethods(prev => {
       const updated = {
@@ -528,7 +584,6 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
     })
   }
 
-  // Start/stop connection mode
   const toggleConnectionMode = () => {
     if (connectMode) {
       setConnectMode(false)
@@ -539,12 +594,10 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
     }
   }
 
-  // Remove an edge
   const removeEdge = (edgeId: string) => {
     setEdges((eds) => eds.filter(e => e.id !== edgeId))
   }
 
-  // Validate UML
   const validateUML = () => {
     const errors: string[] = []
 
@@ -594,7 +647,7 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
     })
 
     if (errors.length === 0) {
-      errors.push("✓ Perfect! Your Observer pattern UML is correct!")
+      errors.push("Perfect! Your Observer pattern UML is correct!")
     }
 
     setValidationErrors(errors)
@@ -606,441 +659,432 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
 
   const getClassHelp = (className: string) => {
     const helpContent: Record<string, string> = {
-      "Subject": "The Subject is the abstract class that maintains a list of observers and notifies them of state changes.\n\nRequired:\n• observerList: Observer* (attribute to store list of observers)\n• attach(Observer) (method to add an observer)\n• detach(Observer) (method to remove an observer)\n• notify() (method to alert all observers of changes)\n\nRole: Acts as the central hub that tracks all observers and triggers their updates when state changes.",
+      "Subject": "The Subject is the abstract class that maintains a list of observers and notifies them of state changes.\n\nRequired:\n- observerList: Observer* (attribute to store list of observers)\n- attach(Observer) (method to add an observer)\n- detach(Observer) (method to remove an observer)\n- notify() (method to alert all observers of changes)\n\nRole: Acts as the central hub that tracks all observers and triggers their updates when state changes.",
       
-      "Observer": "The Observer is an interface that defines the update contract.\n\nRequired:\n• update() method (called when subject's state changes)\n\nRole: Provides the contract that all concrete observers must follow. Any class implementing this interface agrees to have an update() method.",
+      "Observer": "The Observer is an interface that defines the update contract.\n\nRequired:\n- update() method (called when subject's state changes)\n\nRole: Provides the contract that all concrete observers must follow. Any class implementing this interface agrees to have an update() method.",
       
-      "ConcreteSubject": "ConcreteSubject extends Subject and maintains the actual state.\n\nRequired:\n• subjectState: State* (stores the actual state data)\n• getState(): State* (allows observers to read the current state)\n• setState() (updates the state and triggers notifications)\n\nRole: Holds the real data and triggers observer notifications when that data changes.",
+      "ConcreteSubject": "ConcreteSubject extends Subject and maintains the actual state.\n\nRequired:\n- subjectState: State* (stores the actual state data)\n- getState(): State* (allows observers to read the current state)\n- setState() (updates the state and triggers notifications)\n\nRole: Holds the real data and triggers observer notifications when that data changes.",
       
-      "ConcreteObserver": "ConcreteObserver implements the Observer interface.\n\nRequired:\n• observerState: State* (observer's copy of the state)\n• subject: ConcreteSubject* (reference to the subject being observed)\n• update() (syncs observer's state with subject's state)\n\nRole: Listens to the subject and updates itself whenever the subject changes."
+      "ConcreteObserver": "ConcreteObserver implements the Observer interface.\n\nRequired:\n- observerState: State* (observer's copy of the state)\n- subject: ConcreteSubject* (reference to the subject being observed)\n- update() (syncs observer's state with subject's state)\n\nRole: Listens to the subject and updates itself whenever the subject changes."
     }
 
     return helpContent[className] || "Select a class to see helpful information."
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="px-6 pb-8 max-w-7xl mx-auto pt-4">
-        <div className="grid grid-cols-4 gap-6">
-          {/* Left Sidebar */}
-          <div className="col-span-1">
-            <Card className="p-4 bg-teal-700 text-white border-0 max-h-[90vh] overflow-y-auto">
-              <h3 className="text-lg font-bold mb-3">Classes</h3>
-              
-              {/* Class Buttons */}
-              <div className="space-y-2 mb-4">
-                {CLASS_OPTIONS.map((cls, index) => (
-                  <div key={`${cls.name}-${index}`}>
-                    <button
-                      onClick={() => addClassToCanvas(cls.name, cls.type)}
-                      className={`w-full py-2 px-3 rounded-lg font-semibold transition-colors text-sm text-center ${
-                        selectedClass === cls.name 
-                          ? "bg-white text-teal-700 shadow-lg ring-2 ring-teal-400" 
-                          : "bg-teal-600 text-white hover:bg-teal-500"
-                      }`}
-                      title={`Click to add ${cls.name} to canvas`}
-                    >
-                      <div className="font-bold">{cls.name}</div>
-                      <div className="text-xs opacity-75">add to canvas</div>
-                    </button>
-                    {selectedClass === cls.name && (
+    <ScreenSizeChecker>
+      <div className="min-h-screen bg-white">
+        <div className="px-6 pb-8 max-w-7xl mx-auto pt-4">
+          <div className="grid grid-cols-4">
+            {/* Left Sidebar */}
+            <div className="col-span-1">
+              <Card className="p-4 bg-teal-700 text-white border-0 max-h-[90vh] overflow-y-auto">
+                <h3 className="text-lg font-bold mb-3">Classes</h3>
+                
+                <div className="space-y-2 mb-4">
+                  {CLASS_OPTIONS.map((cls, index) => (
+                    <div key={`${cls.name}-${index}`}>
                       <button
-                        onClick={() => showHelp(`About ${cls.name}`, getClassHelp(cls.name))}
-                        className="w-full mt-1 py-1 text-xs bg-cyan-400 text-teal-700 hover:bg-cyan-300 rounded font-semibold"
+                        onClick={() => addClassToCanvas(cls.name, cls.type)}
+                        className={`w-full py-2 px-3 rounded-lg font-semibold transition-colors text-sm text-center ${
+                          selectedClass === cls.name 
+                            ? "bg-white text-teal-700 shadow-lg ring-2 ring-teal-400" 
+                            : "bg-teal-600 text-white hover:bg-teal-500"
+                        }`}
+                        title={`Click to add ${cls.name} to canvas`}
                       >
-                        Details
+                        <div className="font-bold">{cls.name}</div>
+                        <div className="text-xs opacity-75">add to canvas</div>
                       </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {selectedClass && (
-                <>
-                  <div className="mb-3 p-3 bg-teal-800 rounded border-2 border-cyan-400">
-                    <div className="text-sm font-bold mb-1">Editing: {selectedClass}</div>
-                    <p className="text-xs text-cyan-300">Click canvas to switch</p>
-                  </div>
-
-                  {/* Visibility Selector for Attributes */}
-                  <div className="mb-4 pb-4 border-b border-teal-600">
-                    <label className="text-xs font-semibold mb-2 block">Attribute Visibility:</label>
-                    <div className="flex gap-1">
-                      {Object.entries(VISIBILITY_SYMBOLS).map(([key, label]) => (
+                      {selectedClass === cls.name && (
                         <button
-                          key={key}
-                          onClick={() => setVisibilityAttr(key as "private" | "public" | "protected")}
-                          className={`flex-1 px-2 py-1 text-xs rounded font-bold transition-colors ${
-                            visibilityAttr === key
-                              ? 'bg-cyan-400 text-teal-700'
-                              : 'bg-teal-600 text-white hover:bg-teal-500'
-                          }`}
-                          title={label}
+                          onClick={() => showHelp(`About ${cls.name}`, getClassHelp(cls.name))}
+                          className="w-full mt-1 py-1 text-xs bg-cyan-400 text-teal-700 hover:bg-cyan-300 rounded font-semibold"
                         >
-                          {key === 'private' ? '-' : key === 'public' ? '+' : '#'}
+                          Learn More
                         </button>
-                      ))}
+                      )}
                     </div>
-                  </div>
-
-                  {/* Attributes Section */}
-                  <div className="mb-4 pb-4 border-b border-teal-600">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-semibold block">Attributes:</label>
-                      <button
-                        onClick={() => setExpandedHelp(expandedHelp === 'attr' ? null : 'attr')}
-                        className="text-cyan-400 hover:text-cyan-300"
-                      >
-                        <ChevronDown className={`w-3 h-3 transition-transform ${expandedHelp === 'attr' ? 'rotate-180' : ''}`} />
-                      </button>
-                    </div>
-                    {expandedHelp === 'attr' && (
-                      <div className="bg-teal-800 rounded p-2 mb-2 text-xs text-cyan-300 space-y-1">
-                        <p className="font-bold">Examples:</p>
-                        {ATTRIBUTE_EXAMPLES.map((ex, i) => (
-                          <p key={i}>• {ex}</p>
-                        ))}
-                      </div>
-                    )}
-                    <div className="space-y-1 mb-2 max-h-24 overflow-y-auto">
-                      {(classAttributes[selectedClass] || []).map((attr, idx) => (
-                        <div key={idx} className="flex items-center justify-between bg-teal-600 p-1.5 rounded text-xs">
-                          <span className="font-mono truncate flex-1">{attr}</span>
-                          <button
-                            onClick={() => removeAttribute(selectedClass, idx)}
-                            className="ml-1 text-red-300 hover:text-red-100"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex gap-1">
-                      <Input
-                        value={attributeInput}
-                        onChange={(e) => {
-                          setAttributeInput(e.target.value)
-                          attributeInputRef.current = e.target.value
-                        }}
-                        placeholder="name: Type"
-                        className="text-xs bg-white text-gray-800 h-8"
-                        onKeyPress={(e) => e.key === 'Enter' && handleAddAttribute()}
-                      />
-                      <Button
-                        onClick={handleAddAttribute}
-                        size="sm"
-                        className="bg-cyan-400 text-teal-700 hover:bg-cyan-300 h-8 px-2"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Visibility Selector for Methods */}
-                  <div className="mb-4 pb-4 border-b border-teal-600">
-                    <label className="text-xs font-semibold mb-2 block">Method Visibility:</label>
-                    <div className="flex gap-1">
-                      {Object.entries(VISIBILITY_SYMBOLS).map(([key, label]) => (
-                        <button
-                          key={key}
-                          onClick={() => setVisibilityMethod(key as "public" | "private" | "protected")}
-                          className={`flex-1 px-2 py-1 text-xs rounded font-bold transition-colors ${
-                            visibilityMethod === key
-                              ? 'bg-cyan-400 text-teal-700'
-                              : 'bg-teal-600 text-white hover:bg-teal-500'
-                          }`}
-                          title={label}
-                        >
-                          {key === 'private' ? '-' : key === 'public' ? '+' : '#'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Methods Section */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-semibold block">Methods:</label>
-                      <button
-                        onClick={() => setExpandedHelp(expandedHelp === 'method' ? null : 'method')}
-                        className="text-cyan-400 hover:text-cyan-300"
-                      >
-                        <ChevronDown className={`w-3 h-3 transition-transform ${expandedHelp === 'method' ? 'rotate-180' : ''}`} />
-                      </button>
-                    </div>
-                    {expandedHelp === 'method' && (
-                      <div className="bg-teal-800 rounded p-2 mb-2 text-xs text-cyan-300 space-y-1">
-                        <p className="font-bold">Examples:</p>
-                        {METHOD_EXAMPLES.map((ex, i) => (
-                          <p key={i}>• {ex}</p>
-                        ))}
-                      </div>
-                    )}
-                    <div className="space-y-1 mb-2 max-h-24 overflow-y-auto">
-                      {(classMethods[selectedClass] || []).map((method, idx) => (
-                        <div key={idx} className="flex items-center justify-between bg-teal-600 p-1.5 rounded text-xs">
-                          <span className="font-mono truncate flex-1">{method}</span>
-                          <button
-                            onClick={() => removeMethod(selectedClass, idx)}
-                            className="ml-1 text-red-300 hover:text-red-100"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex gap-1">
-                      <Input
-                        value={methodInput}
-                        onChange={(e) => {
-                          setMethodInput(e.target.value)
-                          methodInputRef.current = e.target.value
-                        }}
-                        placeholder="methodName()"
-                        className="text-xs bg-white text-gray-800 h-8"
-                        onKeyPress={(e) => e.key === 'Enter' && handleAddMethod()}
-                      />
-                      <Button
-                        onClick={handleAddMethod}
-                        size="sm"
-                        className="bg-cyan-400 text-teal-700 hover:bg-cyan-300 h-8 px-2"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {!selectedClass && (
-                <div className="p-3 bg-teal-800 rounded text-center text-xs">
-                  <p className="text-cyan-300">
-                    Click a class or add to canvas
-                  </p>
-                </div>
-              )}
-
-              {/* Relationships Section */}
-              <div className="mt-4 pt-4 border-t border-teal-600">
-                <h4 className="text-xs font-bold mb-2">Relationships</h4>
-                <div className="space-y-2 mb-3 max-h-20 overflow-y-auto">
-                  {RELATIONSHIP_TYPES.map(rel => (
-                    <button
-                      key={rel.type}
-                      onClick={() => setSelectedRelationType(rel.type)}
-                      className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
-                        selectedRelationType === rel.type
-                          ? 'bg-cyan-400 text-teal-700 font-bold'
-                          : 'bg-teal-600 text-white hover:bg-teal-500'
-                      }`}
-                      title={rel.description}
-                    >
-                      <div className="font-bold">{rel.name}</div>
-                      <div className="text-xs opacity-75">{rel.symbol}</div>
-                    </button>
                   ))}
                 </div>
-                <Button
-                  onClick={toggleConnectionMode}
-                  className={`w-full font-bold text-xs py-2 ${
-                    connectMode 
-                      ? 'bg-red-500 hover:bg-red-600 text-white' 
-                      : 'bg-cyan-400 hover:bg-cyan-300 text-teal-700'
-                  }`}
-                >
-                  {connectMode ? 'Cancel' : 'Connect'}
-                </Button>
-                {connectMode && (
-                  <div className="mt-2 p-2 bg-teal-800 rounded text-xs text-center">
-                    <p className="text-yellow-300 font-bold">
-                      {firstNodeId ? 'Click target' : 'Click source'}
+
+                {selectedClass && (
+                  <>
+                    <div className="mb-3 p-3 bg-teal-800 rounded border-2 border-cyan-400">
+                      <div className="text-sm font-bold mb-1">Editing: {selectedClass}</div>
+                      <p className="text-xs text-cyan-300">Click canvas to switch</p>
+                    </div>
+
+                    <div className="mb-4 pb-4 border-b border-teal-600">
+                      <label className="text-xs font-semibold mb-2 block">Attribute Visibility:</label>
+                      <div className="flex gap-1">
+                        {Object.entries(VISIBILITY_SYMBOLS).map(([key, label]) => (
+                          <button
+                            key={key}
+                            onClick={() => setVisibilityAttr(key as "private" | "public" | "protected")}
+                            className={`flex-1 px-2 py-1 text-xs rounded font-bold transition-colors ${
+                              visibilityAttr === key
+                                ? 'bg-cyan-400 text-teal-700'
+                                : 'bg-teal-600 text-white hover:bg-teal-500'
+                            }`}
+                            title={label}
+                          >
+                            {key === 'private' ? '-' : key === 'public' ? '+' : '#'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mb-4 pb-4 border-b border-teal-600">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-semibold block">Attributes:</label>
+                        <button
+                          onClick={() => setExpandedHelp(expandedHelp === 'attr' ? null : 'attr')}
+                          className="text-cyan-400 hover:text-cyan-300"
+                        >
+                          <ChevronDown className={`w-3 h-3 transition-transform ${expandedHelp === 'attr' ? 'rotate-180' : ''}`} />
+                        </button>
+                      </div>
+                      {expandedHelp === 'attr' && (
+                        <div className="bg-teal-800 rounded p-2 mb-2 text-xs text-cyan-300 space-y-1">
+                          <p className="font-bold">Examples:</p>
+                          {ATTRIBUTE_EXAMPLES.map((ex, i) => (
+                            <p key={i}>- {ex}</p>
+                          ))}
+                        </div>
+                      )}
+                      <div className="space-y-1 mb-2 max-h-24 overflow-y-auto">
+                        {(classAttributes[selectedClass] || []).map((attr, idx) => (
+                          <div key={idx} className="flex items-center justify-between bg-teal-600 p-1.5 rounded text-xs">
+                            <span className="font-mono truncate flex-1">{attr}</span>
+                            <button
+                              onClick={() => removeAttribute(selectedClass, idx)}
+                              className="ml-1 text-red-300 hover:text-red-100"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-1">
+                        <Input
+                          value={attributeInput}
+                          onChange={(e) => {
+                            setAttributeInput(e.target.value)
+                            attributeInputRef.current = e.target.value
+                          }}
+                          placeholder="name: Type"
+                          className="text-xs bg-white text-gray-800 h-8"
+                          onKeyPress={(e) => e.key === 'Enter' && handleAddAttribute()}
+                        />
+                        <Button
+                          onClick={handleAddAttribute}
+                          size="sm"
+                          className="bg-cyan-400 text-teal-700 hover:bg-cyan-300 h-8 px-2"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="mb-4 pb-4 border-b border-teal-600">
+                      <label className="text-xs font-semibold mb-2 block">Method Visibility:</label>
+                      <div className="flex gap-1">
+                        {Object.entries(VISIBILITY_SYMBOLS).map(([key, label]) => (
+                          <button
+                            key={key}
+                            onClick={() => setVisibilityMethod(key as "public" | "private" | "protected")}
+                            className={`flex-1 px-2 py-1 text-xs rounded font-bold transition-colors ${
+                              visibilityMethod === key
+                                ? 'bg-cyan-400 text-teal-700'
+                                : 'bg-teal-600 text-white hover:bg-teal-500'
+                            }`}
+                            title={label}
+                          >
+                            {key === 'private' ? '-' : key === 'public' ? '+' : '#'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-semibold block">Methods:</label>
+                        <button
+                          onClick={() => setExpandedHelp(expandedHelp === 'method' ? null : 'method')}
+                          className="text-cyan-400 hover:text-cyan-300"
+                        >
+                          <ChevronDown className={`w-3 h-3 transition-transform ${expandedHelp === 'method' ? 'rotate-180' : ''}`} />
+                        </button>
+                      </div>
+                      {expandedHelp === 'method' && (
+                        <div className="bg-teal-800 rounded p-2 mb-2 text-xs text-cyan-300 space-y-1">
+                          <p className="font-bold">Examples:</p>
+                          {METHOD_EXAMPLES.map((ex, i) => (
+                            <p key={i}>- {ex}</p>
+                          ))}
+                        </div>
+                      )}
+                      <div className="space-y-1 mb-2 max-h-24 overflow-y-auto">
+                        {(classMethods[selectedClass] || []).map((method, idx) => (
+                          <div key={idx} className="flex items-center justify-between bg-teal-600 p-1.5 rounded text-xs">
+                            <span className="font-mono truncate flex-1">{method}</span>
+                            <button
+                              onClick={() => removeMethod(selectedClass, idx)}
+                              className="ml-1 text-red-300 hover:text-red-100"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-1">
+                        <Input
+                          value={methodInput}
+                          onChange={(e) => {
+                            setMethodInput(e.target.value)
+                            methodInputRef.current = e.target.value
+                          }}
+                          placeholder="methodName()"
+                          className="text-xs bg-white text-gray-800 h-8"
+                          onKeyPress={(e) => e.key === 'Enter' && handleAddMethod()}
+                        />
+                        <Button
+                          onClick={handleAddMethod}
+                          size="sm"
+                          className="bg-cyan-400 text-teal-700 hover:bg-cyan-300 h-8 px-2"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {!selectedClass && (
+                  <div className="p-3 bg-teal-800 rounded text-center text-xs">
+                    <p className="text-cyan-300">
+                      Click a class or add to canvas
                     </p>
                   </div>
                 )}
-              </div>
 
-              {/* Edge Routing Styles */}
-              {selectedEdgeId && (
                 <div className="mt-4 pt-4 border-t border-teal-600">
-                  <h4 className="text-xs font-bold mb-2">How should the lines connect?</h4>
-                  <div className="space-y-1">
-                    {EDGE_STYLES.map(style => (
+                  <h4 className="text-xs font-bold mb-2">Relationships</h4>
+                  <div className="space-y-2 mb-3 overflow-y-auto">
+                    {RELATIONSHIP_TYPES.map(rel => (
                       <button
-                        key={style.type}
-                        onClick={() => updateEdgeStyle(selectedEdgeId, style.type)}
-                        className="w-full text-left px-2 py-1.5 rounded text-xs transition-colors bg-teal-600 text-white hover:bg-teal-500 font-semibold"
+                        key={rel.type}
+                        onClick={() => setSelectedRelationType(rel.type)}
+                        className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
+                          selectedRelationType === rel.type
+                            ? 'bg-cyan-400 text-teal-700 font-bold'
+                            : 'bg-teal-600 text-white hover:bg-teal-500'
+                        }`}
+                        title={rel.description}
                       >
-                        {style.name}
+                        <div className="font-bold">{rel.name}</div>
+                        <div className="text-xs opacity-75">{rel.symbol}</div>
                       </button>
                     ))}
                   </div>
                   <Button
-                    onClick={() => setSelectedEdgeId(null)}
-                    className="w-full mt-2 bg-red-500 hover:bg-red-600 text-white font-bold text-xs py-1"
+                    onClick={toggleConnectionMode}
+                    className={`w-full font-bold text-xs py-2 ${
+                      connectMode 
+                        ? 'bg-red-500 hover:bg-red-600 text-white' 
+                        : 'bg-cyan-400 hover:bg-cyan-300 text-teal-700'
+                    }`}
                   >
-                    Clear Selection
+                    {connectMode ? 'Cancel' : 'Connect Classes'}
                   </Button>
-                </div>
-              )}
-            </Card>
-          </div>
-
-          {/* Canvas Area */}
-          <div className="col-span-3">
-            <Card className="p-6 border-2 border-teal-700 h-full flex flex-col">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <p className="text-teal-700 font-semibold text-sm">Observer Pattern UML Diagram</p>
-                  <p className="text-xs text-gray-600">
-                    Classes: {nodes.length} | Relationships: {edges.length}
-                    {connectMode && <span className="text-yellow-600 ml-2">🔗 CONNECT</span>}
-                  </p>
-                </div>
-                <button
-                  onClick={() => showHelp(
-                    "Quick Guide",
-                    "1. Add classes from sidebar\n2. Click a class to edit\n3. Add attributes/methods\n4. Select relationship type\n5. Click 'Connect' and click classes\n6. Click an edge to change routing\n7. Click 'Validate' to check"
+                  {connectMode && (
+                    <div className="mt-2 p-2 bg-teal-800 rounded text-xs text-center">
+                      <p className="text-yellow-300 font-bold">
+                        {firstNodeId ? 'Click target class' : 'Click source class'}
+                      </p>
+                    </div>
                   )}
-                  className="text-teal-700 hover:text-teal-600"
-                >
-                  <HelpCircle className="w-5 h-5" />
-                </button>
-              </div>
+                </div>
 
-              {/* React Flow Canvas */}
-              <div className="flex-1 bg-blue-50 rounded-lg border-2 border-teal-700 mb-4">
-                <ReactFlow
-                  nodes={nodes.map(node => ({
-                    ...node,
-                    data: {
-                      ...node.data,
-                      handleNodeSelect,
-                    }
-                  }))}
-                  edges={edges.map(edge => ({
-                    ...edge,
-                    selected: edge.id === selectedEdgeId,
-                    onClick: () => setSelectedEdgeId(edge.id)
-                  }))}
-                  onNodesChange={onNodesChange}
-                  onEdgesChange={onEdgesChange}
-                  nodeTypes={nodeTypes}
-                  fitView
-                  onEdgeClick={(event, edge) => {
-                    setSelectedEdgeId(edge.id)
-                    showHelp("Edge Selected", `Click 'Edge Routing' options on the left to change how this connection line flows!\n\nRoutings:\n• Smooth - curved lines\n• Straight - direct lines\n• Bezier - smooth curves\n• Step - right-angle turns`)
-                  }}
-                >
-                  <Background color="#93C5FD" gap={16} />
-                  <Controls />
-                </ReactFlow>
-              </div>
-
-              {/* Edges Info */}
-              {edges.length > 0 && (
-                <Card className="p-3 mb-4 bg-gray-50 max-h-20 overflow-y-auto">
-                  <p className="text-xs font-bold text-gray-700 mb-2">Relationships (Click to edit routing):</p>
-                  <div className="space-y-1">
-                    {edges.map(edge => (
-                      <button
-                        key={edge.id}
-                        onClick={() => {
-                          setSelectedEdgeId(edge.id)
-                          showHelp("Edge Selected", "Change its routing style using options on the left!")
-                        }}
-                        className={`w-full flex items-center justify-between text-xs bg-white p-2 rounded transition-colors hover:bg-blue-100 ${
-                          selectedEdgeId === edge.id ? 'ring-2 ring-teal-500' : ''
-                        }`}
-                      >
-                        <span className="font-mono">
-                          {nodes.find(n => n.id === edge.source)?.data.className} 
-                          {" "}{edge.data.relationType === 'inheritance' ? '◁──' : edge.data.relationType === 'composition' ? '◆──' : edge.data.relationType === 'dependency' ? '┄┄>' : '──>'} 
-                          {nodes.find(n => n.id === edge.target)?.data.className}
-                        </span>
+                {selectedEdgeId && (
+                  <div className="mt-4 pt-4 border-t border-teal-600">
+                    <h4 className="text-xs font-bold mb-2">Line Routing</h4>
+                    <div className="space-y-1">
+                      {EDGE_STYLES.map(style => (
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            removeEdge(edge.id)
-                          }}
-                          className="text-red-500 hover:text-red-700 ml-2"
+                          key={style.type}
+                          onClick={() => updateEdgeStyle(selectedEdgeId, style.type)}
+                          className="w-full text-left px-2 py-1.5 rounded text-xs transition-colors bg-teal-600 text-white hover:bg-teal-500 font-semibold"
                         >
-                          ✕
+                          {style.name}
                         </button>
-                      </button>
-                    ))}
+                      ))}
+                    </div>
+                    <Button
+                      onClick={() => setSelectedEdgeId(null)}
+                      className="w-full mt-2 bg-red-500 hover:bg-red-600 text-white font-bold text-xs py-1"
+                    >
+                      Clear Selection
+                    </Button>
                   </div>
-                </Card>
-              )}
-
-              {/* Validation Section */}
-              <Card className={`p-3 mb-4 border-2 ${
-                validationErrors.length > 0 && validationErrors[0].startsWith('✓')
-                  ? 'bg-green-50 border-green-600'
-                  : 'bg-blue-100 border-yellow-600'
-              }`}>
-                <p className="text-sm font-semibold mb-1">
-                  {validationErrors.length === 0 
-                    ? "Click 'Validate' to check your diagram" 
-                    : validationErrors[0].startsWith('✓')
-                    ? "✓ Success!"
-                    : "⚠ Issues:"}
-                </p>
-                {validationErrors.length > 0 && (
-                  <ul className="space-y-0.5 text-gray-700 text-xs">
-                    {validationErrors.slice(0, 4).map((error, idx) => (
-                      <li key={idx} className={error.startsWith('✓') ? 'text-green-700 font-semibold' : ''}>
-                        {error.startsWith('✓') ? error : `• ${error}`}
-                      </li>
-                    ))}
-                    {validationErrors.length > 4 && (
-                      <li className="text-gray-600 italic">... and {validationErrors.length - 4} more</li>
-                    )}
-                  </ul>
                 )}
               </Card>
+            </div>
 
-              {/* Buttons */}
-              <div className="flex gap-4">
-                <Button 
-                  onClick={validateUML}
-                  className="flex-1 bg-teal-700 text-white hover:bg-teal-800 font-bold py-3 rounded-lg"
-                >
-                  Validate UML
-                </Button>
-                <Button
-                  onClick={onNext}
-                  className="flex-1 bg-teal-700 text-white hover:bg-teal-800 font-bold py-3 rounded-lg"
-                >
-                  Continue
-                </Button>
-              </div>
-            </Card>
+            {/* Canvas Area */}
+            <div className="col-span-3">
+              <Card className="p-6 border-2 border-teal-700 h-full flex flex-col">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-teal-700 font-semibold text-sm">Observer Pattern UML Diagram</p>
+                    <p className="text-xs text-gray-600">
+                      Classes: {nodes.length} | Relationships: {edges.length}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => showHelp(
+                      "Quick Guide",
+                      "1. Add classes from sidebar\n2. Click a class to edit\n3. Add attributes and methods\n4. Select relationship type\n5. Click Connect Classes and select two classes\n6. Click an edge to change line style\n7. Click Validate to check"
+                    )}
+                    className="text-teal-700 hover:text-teal-600"
+                  >
+                    <HelpCircle className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 bg-blue-50 rounded-lg border-2 border-teal-700 mb-4">
+                  <ReactFlow
+                    nodes={nodes.map(node => ({
+                      ...node,
+                      data: {
+                        ...node.data,
+                        handleNodeSelect,
+                      }
+                    }))}
+                    edges={edges as Edge[]}
+
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    nodeTypes={nodeTypes}
+                    fitView
+                    onEdgeClick={(event, edge) => {
+                      setSelectedEdgeId(edge.id)
+                      const edgeData = edge.data || { relationType: 'association', sourceClass: '', targetClass: '' }
+                      showHelp("Edge Selected", `Click line routing options on the left to change how this connection flows.\n\nRoutings:\n- Smooth: curved lines\n- Straight: direct lines\n- Bezier: smooth curves\n- Step: right-angle turns`)
+                    }}
+                  >
+                    <Background color="#93C5FD" gap={16} />
+                    <Controls />
+                  </ReactFlow>
+                </div>
+
+                {edges.length > 0 && (
+                  <Card className="p-3 mb-4 bg-gray-50 overflow-y-auto">
+                    <p className="text-xs font-bold text-gray-700 mb-2">Relationships:</p>
+                    <div className="space-y-1">
+                      {edges.map(edge => {
+                        const edgeData = edge.data || { relationType: 'association', sourceClass: '', targetClass: '' }
+                        return (
+                          <button
+                            key={edge.id}
+                            onClick={() => {
+                              setSelectedEdgeId(edge.id)
+                              showHelp("Edge Selected", "Change its routing style using options on the left!")
+                            }}
+                            className={`w-full flex items-center justify-between text-xs bg-white p-2 rounded transition-colors hover:bg-blue-100 ${
+                              selectedEdgeId === edge.id ? 'ring-2 ring-teal-500' : ''
+                            }`}
+                          >
+                            <span className="font-mono">
+                              {nodes.find(n => n.id === edge.source)?.data.className} 
+                              {" "}{edgeData.relationType === 'inheritance' ? '◁──' : edgeData.relationType === 'composition' ? '◆──' : edgeData.relationType === 'dependency' ? '┄┄>' : '──>'} 
+                              {nodes.find(n => n.id === edge.target)?.data.className}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                removeEdge(edge.id)
+                              }}
+                              className="text-red-500 hover:text-red-700 ml-2"
+                            >
+                              Remove
+                            </button>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </Card>
+                )}
+
+                <Card className={`p-3 mb-4 border-2 ${
+                  validationErrors.length > 0 && !validationErrors[0].startsWith('Perfect')
+                    ? 'bg-yellow-50 border-yellow-600'
+                    : validationErrors.length > 0
+                    ? 'bg-green-50 border-green-600'
+                    : 'bg-blue-100 border-yellow-600'
+                }`}>
+                  <p className="text-sm font-semibold mb-1">
+                    {validationErrors.length === 0 
+                      ? "Click Validate to check your diagram" 
+                      : validationErrors[0].startsWith('Perfect')
+                      ? "Success!"
+                      : "Issues:"}
+                  </p>
+                  {validationErrors.length > 0 && (
+                    <ul className="space-y-0.5 text-gray-700 text-xs">
+                      {validationErrors.slice(0, 4).map((error, idx) => (
+                        <li key={idx} className={error.startsWith('Perfect') ? 'text-green-700 font-semibold' : ''}>
+                          {error.startsWith('Perfect') ? error : `- ${error}`}
+                        </li>
+                      ))}
+                      {validationErrors.length > 4 && (
+                        <li className="text-gray-600 italic">and {validationErrors.length - 4} more</li>
+                      )}
+                    </ul>
+                  )}
+                </Card>
+
+                <div className="flex gap-4">
+                  <Button 
+                    onClick={validateUML}
+                    className="flex-1 bg-teal-700 text-white hover:bg-teal-800 font-bold py-3 rounded-lg"
+                  >
+                    Validate UML
+                  </Button>
+                  <Button
+                    onClick={onNext}
+                    className="flex-1 bg-teal-700 text-white hover:bg-teal-800 font-bold py-3 rounded-lg"
+                  >
+                    Continue
+                  </Button>
+                </div>
+              </Card>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Help Dialog */}
-      <Dialog open={helpDialog.open} onOpenChange={(open) => setHelpDialog({...helpDialog, open})}>
-        <DialogContent className="bg-white max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-teal-700">{helpDialog.title}</DialogTitle>
-            <DialogDescription className="text-gray-700 whitespace-pre-line text-sm">
-              {helpDialog.content}
-            </DialogDescription>
-          </DialogHeader>
-          <Button
-            onClick={() => setHelpDialog({...helpDialog, open: false})}
-            className="w-full bg-teal-700 text-white hover:bg-teal-800"
-          >
-            Got it!
-          </Button>
-        </DialogContent>
-      </Dialog>
-    </div>
+        <Dialog open={helpDialog.open} onOpenChange={(open) => setHelpDialog({...helpDialog, open})}>
+          <DialogContent className="bg-white max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-teal-700">{helpDialog.title}</DialogTitle>
+              <DialogDescription className="text-gray-700 whitespace-pre-line text-sm">
+                {helpDialog.content}
+              </DialogDescription>
+            </DialogHeader>
+            <Button
+              onClick={() => setHelpDialog({...helpDialog, open: false})}
+              className="w-full bg-teal-700 text-white hover:bg-teal-800"
+            >
+              Close
+            </Button>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </ScreenSizeChecker>
   )
 }
 
-// Main export with ReactFlowProvider wrapper
 export function UMLBuilderPage({ onNext }: UMLBuilderPageProps) {
   return (
     <ReactFlowProvider>
