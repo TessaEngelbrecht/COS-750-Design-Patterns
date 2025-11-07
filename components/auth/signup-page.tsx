@@ -1,23 +1,24 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-
+import { supabase } from "@/lib/supebase"
 interface SignupPageProps {
   onSwitchToLogin: () => void
 }
 
 export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
   const [formData, setFormData] = useState({
-    name: "Design Withdesigners",
-    email: "designwithdesigners@gmail.com",
-    password: "DesignWITHdesigners12345",
-    confirmPassword: "DesignWITHdesigners12345",
+    first_name: "",
+    last_name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -27,7 +28,8 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
     })
   }
 
-  const handleSignup = (e: React.FormEvent) => {
+  // Sign up function with Supabase
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (formData.password !== formData.confirmPassword) {
@@ -35,15 +37,52 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
       return
     }
 
-    const user = {
-      id: Date.now().toString(),
+    setLoading(true)
+
+    //  User creation in Supabase Auth
+    const { data, error } = await supabase.auth.signUp({
       email: formData.email,
-      name: formData.name,
-      role: "student",
+      password: formData.password
+    })
+
+    if (error) {
+      alert(`Sign up error: ${error.message}`)
+      setLoading(false)
+      return
     }
 
-    localStorage.setItem("user", JSON.stringify(user))
-    router.push("/student")
+    // User insertion in the user table
+    if (data?.user) {
+      const { error: dbError } = await supabase
+        .from("users")
+        .insert([{
+          id: data.user.id,
+          email: formData.email,
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          role: "student",
+          has_seen_self_reflection: false
+        }])
+
+      if (dbError) {
+        alert(`Database error: ${dbError.message}`)
+        setLoading(false)
+        return
+      }
+
+      localStorage.setItem("user", JSON.stringify({
+        id: data.user.id,
+        email: formData.email,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        role: "student",
+      }))
+
+      setLoading(false)
+      router.push("/student")
+    } else {
+      setLoading(false)
+    }
   }
 
   return (
@@ -52,13 +91,15 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
       <div className="w-full md:w-1/2 bg-white flex flex-col justify-center px-8 py-12">
         <div className="relative mb-8 h-64">
           <div className="bg-gray-200 rounded-3xl p-8 h-full flex items-center justify-center">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-teal-600 mb-4">Welcome to COS 214</h2>
-              <p className="text-gray-600">Software Modeling</p>
-            </div>
+            <img
+              src="/images/undraw_educator_re_s3jk.svg"
+              alt="Educator Illustration"
+              className="w-full h-full object-contain rounded-lg"
+              style={{ maxWidth: "100%", maxHeight: "100%" }}
+            />
           </div>
         </div>
-
+        <p className="text-gray-600 text-center mb-4">Software Modeling</p>
         <div className="space-y-4">
           <p className="text-gray-700 font-medium">
             In the following app you as a student will be able to see where you are currently at with your knowledge on
@@ -76,17 +117,31 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
           <h1 className="text-white text-3xl font-bold mb-8">Sign Up</h1>
 
           <div className="mb-4">
-            <label htmlFor="name" className="block text-white font-semibold mb-2">
-              Name
+            <label htmlFor="first_name" className="block text-white font-semibold mb-2">
+              First Name
             </label>
             <input
-              id="name"
-              name="name"
+              id="first_name"
+              name="first_name"
               type="text"
-              value={formData.name}
+              value={formData.first_name}
               onChange={handleChange}
               className="input-field bg-white"
-              placeholder="Your name"
+              placeholder="Your first name"
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="last_name" className="block text-white font-semibold mb-2">
+              Last Name
+            </label>
+            <input
+              id="last_name"
+              name="last_name"
+              type="text"
+              value={formData.last_name}
+              onChange={handleChange}
+              className="input-field bg-white"
+              placeholder="Your last name"
             />
           </div>
 
@@ -204,13 +259,20 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
             </div>
           </div>
 
-          <button onClick={handleSignup} className="w-full btn-primary bg-white text-teal-600 font-bold mb-4">
-            SIGN UP
+          <button
+            onClick={handleSignup}
+            className="w-full btn-primary bg-white text-teal-600 font-bold mb-4 rounded-lg hover:bg-gray-100 hover:shadow focus:outline-none transition cursor-pointer"
+            disabled={loading}
+          >
+            {loading ? "Signing up..." : "SIGN UP"}
           </button>
 
           <p className="text-center text-white text-sm">
             Have an account already?{" "}
-            <button onClick={onSwitchToLogin} className="font-bold hover:underline">
+            <button
+              onClick={onSwitchToLogin}
+              className="font-bold hover:underline rounded hover:text-teal-200 focus:outline-none cursor-pointer px-1"
+            >
               Log in
             </button>
           </p>
