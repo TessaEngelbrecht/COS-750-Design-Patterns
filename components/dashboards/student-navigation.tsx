@@ -16,32 +16,34 @@ export function StudentNavigation({ currentPage, onNavigate }: StudentNavigation
     { id: "results", label: "Results", number: 5 },
   ]
 
+  const currentIdx = pages.findIndex(page => page.id === currentPage)
+
   return (
-    <nav className="bg-white border-b-2 border-gray-200 sticky top-16 z-40">
+    <nav className="bg-white sticky top-16 z-40">
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between gap-2 overflow-x-auto">
-          {pages.map((page, idx) => (
-            <div key={page.id} className="flex items-center">
-              <button
-                onClick={() => onNavigate(page.id)}
-                className={`flex flex-col items-center gap-2 px-6 py-3 font-semibold transition ${
-                  currentPage === page.id
-                    ? "text-teal-700 border-b-4 border-teal-700"
-                    : "text-gray-600 hover:text-teal-700"
-                }`}
-              >
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
-                    currentPage === page.id ? "bg-teal-700" : "bg-gray-300"
-                  }`}
+          {pages.map((page, idx) => {
+            const isCompleted = idx <= currentIdx
+            return (
+              <div key={page.id} className="flex items-center">
+                <button
+                  onClick={() => onNavigate(page.id)}
+                  className="flex flex-col items-center gap-2 px-6 py-3 font-bold transition text-black"
                 >
-                  {page.number}
-                </div>
-                <span className="text-xs md:text-sm">{page.label}</span>
-              </button>
-              {idx < pages.length - 1 && <div className="w-8 h-1 bg-gray-300 mx-2" />}
-            </div>
-          ))}
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+                      isCompleted ? "bg-teal-700" : "bg-teal-500"
+                    }`}
+                  >
+                    {page.number}
+                  </div>
+                  <span className="text-xs md:text-sm font-bold">
+                    {page.label}
+                  </span>
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
     </nav>

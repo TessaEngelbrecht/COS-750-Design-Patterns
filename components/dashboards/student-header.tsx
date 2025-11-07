@@ -11,7 +11,7 @@ export function StudentHeader({ userName, onLogout }: StudentHeaderProps) {
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Observer Pattern Learning Platform</h1>
-          <p className="text-sm text-blue-100">Master design patterns through interactive learning</p>
+        
         </div>
         <div className="flex items-center gap-6">
           <div className="text-right">
