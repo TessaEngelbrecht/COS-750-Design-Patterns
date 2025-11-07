@@ -31,224 +31,27 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-// Type definitions
-interface UMLNodeData extends Record<string, unknown> {
-  label: string
-  attributes: string[]
-  methods: string[]
-  classType: string
-  className: string
-  handleNodeSelect: (className: string) => void
-}
-
-interface UMLEdgeData extends Record<string, unknown> {
-  relationType: string
-  sourceClass: string
-  targetClass: string
-  edgeStyle?: string
-}
-
+import { ScreenSizeChecker } from "@/components/uml-builder/ScreenSizeChecker"
+import { UMLClassNode } from "@/components/uml-builder/UMLClassNode"
+import { 
+  CORRECT_PATTERN, 
+  CLASS_OPTIONS, 
+  RELATIONSHIP_TYPES, 
+  EDGE_STYLES, 
+  VISIBILITY_SYMBOLS,
+  ATTRIBUTE_EXAMPLES,
+  METHOD_EXAMPLES
+} from "@/components/uml-builder/constants"
+import { UMLNodeData, UMLEdgeData } from "@/components/uml-builder/types"
 
 interface UMLBuilderPageProps {
   onNext: () => void
-}
-
-const CORRECT_PATTERN = {
-  classes: {
-    Subject: {
-      attributes: ["- observerList: Observer*"],
-      methods: ["+ attach(Observer)", "+ detach(Observer)", "+ notify()"],
-      type: "abstract"
-    },
-    Observer: {
-      attributes: [],
-      methods: ["+ update()"],
-      type: "interface"
-    },
-    ConcreteSubject: {
-      attributes: ["- subjectState: State*"],
-      methods: ["+ getState(): State*", "+ setState()"],
-      type: "concrete"
-    },
-    ConcreteObserver: {
-      attributes: ["- observerState: State*", "- subject: ConcreteSubject*"],
-      methods: ["+ update()"],
-      type: "concrete"
-    }
-  },
-  relationships: [
-    { from: "ConcreteSubject", to: "Subject", type: "inheritance" },
-    { from: "ConcreteObserver", to: "Observer", type: "inheritance" },
-    { from: "Subject", to: "Observer", type: "composition" },
-    { from: "ConcreteObserver", to: "ConcreteSubject", type: "association" }
-  ]
-}
-
-const CLASS_OPTIONS = [
-  { name: "Subject", type: "abstract" },
-  { name: "Observer", type: "interface" },
-  { name: "ConcreteSubject", type: "concrete" },
-  { name: "ConcreteObserver", type: "concrete" }
-]
-
-const RELATIONSHIP_TYPES = [
-  { name: "Inheritance", symbol: "◁──", type: "inheritance", description: "Use when a class extends another class (is-a relationship)" },
-  { name: "Composition", symbol: "◆──", type: "composition", description: "Use when a class contains another class (has-a strong relationship)" },
-  { name: "Association", symbol: "───>", type: "association", description: "Use for general relationships between classes" },
-  { name: "Dependency", symbol: "┄┄>", type: "dependency", description: "Use when one class depends on another but doesn't own it" }
-]
-
-const EDGE_STYLES = [
-  { name: "Smooth", type: "smoothstep" },
-  { name: "Straight", type: "straight" },
-  { name: "Bezier", type: "default" },
-  { name: "Step", type: "step" }
-]
-
-const VISIBILITY_SYMBOLS = {
-  private: "- (private)",
-  public: "+ (public)",
-  protected: "# (protected)"
-}
-
-const ATTRIBUTE_EXAMPLES = [
-  "- name: String",
-  "- count: int",
-  "- items: List<Item>",
-  "- observerList: Observer*",
-  "- state: State*",
-  "+ publicField: double"
-]
-
-const METHOD_EXAMPLES = [
-  "+ update()",
-  "+ notify()",
-  "+ getState(): State*",
-  "+ setState(state: State)",
-  "- privateMethod(): void",
-  "# protectedMethod(param: String): boolean"
-]
-
-// Custom node component for UML classes
-const UMLClassNode = ({ data }: { data: UMLNodeData }) => {
-  const { label, attributes = [], methods = [], classType, handleNodeSelect } = data
-
-  return (
-    <div 
-      onClick={() => handleNodeSelect(label)}
-      className={`bg-blue-100 border-2 rounded-lg shadow-lg min-w-[180px] max-w-[240px] cursor-pointer transition-all hover:shadow-xl ${
-        classType === 'abstract' 
-          ? 'border-4 border-blue-600' 
-          : 'border-blue-800 hover:border-blue-600'
-      }`}
-    >
-      <Handle type="target" position={Position.Top} />
-      <Handle type="source" position={Position.Bottom} />
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
-
-      <div className="bg-blue-200 border-b-2 border-blue-800 px-3 py-2 text-center font-bold text-sm">
-        {classType === 'interface' && <div className="text-xs text-gray-600 font-normal">interface</div>}
-        {classType === 'abstract' && <div className="text-xs text-gray-600 font-normal">abstract</div>}
-        <div className={classType === 'abstract' ? 'italic' : ''}>{label}</div>
-      </div>
-
-      {attributes && attributes.length > 0 && (
-        <div className="border-b-2 border-blue-800 px-3 py-1">
-          {attributes.map((attr: string, idx: number) => (
-            <div key={idx} className="font-mono text-xs text-gray-800 truncate">{attr}</div>
-          ))}
-        </div>
-      )}
-
-      {methods && methods.length > 0 && (
-        <div className="px-3 py-1">
-          {methods.map((method: string, idx: number) => (
-            <div key={idx} className="font-mono text-xs text-gray-800 truncate">{method}</div>
-          ))}
-        </div>
-      )}
-
-      {(!attributes || attributes.length === 0) && (!methods || methods.length === 0) && (
-        <div className="px-3 py-2 text-center text-gray-500 text-xs italic">
-          Add details
-        </div>
-      )}
-    </div>
-  )
 }
 
 const nodeTypes = {
   umlClass: UMLClassNode,
 }
 
-// Screen size checker
-function ScreenSizeChecker({ children }: { children: ReactNode }) {
-  const [isValidSize, setIsValidSize] = useState(true)
-
-  useEffect(() => {
-    const checkSize = () => {
-      const width = window.innerWidth
-      const height = window.innerHeight
-      const isLandscapeTablet = width >= 768 && width > height
-      const isDesktop = width >= 1024
-      
-      setIsValidSize(isDesktop || isLandscapeTablet)
-    }
-
-    checkSize()
-    window.addEventListener('resize', checkSize)
-    return () => window.removeEventListener('resize', checkSize)
-  }, [])
-
-  if (!isValidSize) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex items-center justify-center p-6">
-        <Card className="max-w-md p-8 text-center shadow-xl">
-          <div className="mb-6 flex justify-center">
-            <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center">
-              <Monitor className="w-10 h-10 text-teal-700" />
-            </div>
-          </div>
-          <h2 className="text-2xl font-bold text-teal-700 mb-4">
-            Desktop or Tablet Required
-          </h2>
-          <p className="text-gray-600 mb-6">
-            The UML Builder requires a larger screen for the best experience. 
-            Please switch to:
-          </p>
-          <div className="space-y-3 text-left bg-blue-50 p-4 rounded-lg mb-6">
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 bg-teal-700 text-white rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold">
-                OK
-              </div>
-              <div>
-                <p className="font-semibold text-gray-800">Desktop Computer</p>
-                <p className="text-sm text-gray-600">Any desktop or laptop</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 bg-teal-700 text-white rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold">
-                OK
-              </div>
-              <div>
-                <p className="font-semibold text-gray-800">Tablet in Landscape</p>
-                <p className="text-sm text-gray-600">Rotate your tablet horizontally</p>
-              </div>
-            </div>
-          </div>
-          <p className="text-sm text-gray-500 italic">
-            Current screen is too small for the interactive UML diagram editor
-          </p>
-        </Card>
-      </div>
-    )
-  }
-
-  return <>{children}</>
-}
-
-// Main content component
 function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
   const { fitView } = useReactFlow()
   
@@ -268,8 +71,8 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
   const [expandedHelp, setExpandedHelp] = useState<string | null>(null)
   const [selectedEdgeStyle, setSelectedEdgeStyle] = useState<string>("smoothstep")
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
-const [nodes, setNodes] = useState<Node[]>([])
-const [edges, setEdges] = useState<Edge[]>([])
+  const [nodes, setNodes] = useState<Node[]>([])
+  const [edges, setEdges] = useState<Edge[]>([])
 
   const [selectedRelationType, setSelectedRelationType] = useState<string>("inheritance")
   const [connectMode, setConnectMode] = useState(false)
@@ -279,20 +82,19 @@ const [edges, setEdges] = useState<Edge[]>([])
   const attributeInputRef = useRef<string>("")
   const methodInputRef = useRef<string>("")
 
- const onNodesChange = useCallback(
-  (changes: NodeChange[]) => {
-    setNodes((nds) => applyNodeChanges(changes, nds) as Node[])
-  },
-  []
-)
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      setNodes((nds) => applyNodeChanges(changes, nds) as Node[])
+    },
+    []
+  )
 
-const onEdgesChange = useCallback(
-  (changes: EdgeChange[]) => {
-    setEdges((eds) => applyEdgeChanges(changes, eds) as Edge[])
-  },
-  []
-)
-
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      setEdges((eds) => applyEdgeChanges(changes, eds) as Edge[])
+    },
+    []
+  )
 
   const handleNodeSelect = useCallback((className: string) => {
     if (connectMode) {
@@ -868,7 +670,7 @@ const onEdgesChange = useCallback(
                     </p>
                   </div>
                 )}
-{selectedEdgeId && (
+                {selectedEdgeId && (
                   <div className="mt-4 pt-4 border-t border-teal-600">
                     <h4 className="text-xs font-bold mb-2">Line Routing</h4>
                     <div className="space-y-1">
@@ -928,8 +730,6 @@ const onEdgesChange = useCallback(
                   </Button>
                   
                 </div>
-
-                
               </Card>
             </div>
 
@@ -988,31 +788,33 @@ const onEdgesChange = useCallback(
                         const edgeData = edge.data || { relationType: 'association', sourceClass: '', targetClass: '' }
                         return (
                           <button
-                            key={edge.id}
-                            onClick={() => {
-                              setSelectedEdgeId(edge.id)
-                              showHelp("Edge Selected", "Change its routing style using options on the left!")
-                            }}
-                            className={`w-full flex items-center justify-between text-xs bg-white p-2 rounded transition-colors hover:bg-blue-100 ${
-                              selectedEdgeId === edge.id ? 'ring-2 ring-teal-500' : ''
-                            }`}
-                          >
-                            <span className="font-mono">
-  {(nodes.find(n => n.id === edge.source)?.data as UMLNodeData)?.className} 
-  {" "}{edgeData.relationType === 'inheritance' ? '◁──' : edgeData.relationType === 'composition' ? '◆──' : edgeData.relationType === 'dependency' ? '┄┄>' : '──>'} 
-  {(nodes.find(n => n.id === edge.target)?.data as UMLNodeData)?.className}
-</span>
+  onClick={() => {
+    setSelectedEdgeId(edge.id)
+    showHelp("Edge Selected", "Change its routing style using options on the left!")
+  }}
+  className={`w-full flex items-center justify-between text-xs bg-white p-2 rounded transition-colors hover:bg-blue-100 ${
+    selectedEdgeId === edge.id ? 'ring-2 ring-teal-500' : ''
+  }`}
+>
+  <span className="font-mono">
+    {(nodes.find(n => n.id === edge.source)?.data as UMLNodeData)?.className} 
+    {" "}{edgeData.relationType === 'inheritance' ? '◁──' : edgeData.relationType === 'composition' ? '◆──' : edgeData.relationType === 'dependency' ? '┄┄>' : '──>'} 
+    {(nodes.find(n => n.id === edge.target)?.data as UMLNodeData)?.className}
+  </span>
 
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                removeEdge(edge.id)
-                              }}
-                              className="text-red-500 hover:text-red-700 ml-2"
-                            >
-                              Remove
-                            </button>
-                          </button>
+  <div
+    onClick={(e) => {
+      e.stopPropagation()
+      removeEdge(edge.id)
+    }}
+    className="text-red-500 hover:text-red-700 ml-2 cursor-pointer"
+    role="button"
+    tabIndex={0}
+  >
+    Remove
+  </div>
+</button>
+
                         )
                       })}
                     </div>
