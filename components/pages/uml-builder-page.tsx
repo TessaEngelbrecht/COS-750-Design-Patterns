@@ -868,9 +868,37 @@ const onEdgesChange = useCallback(
                     </p>
                   </div>
                 )}
-
+{selectedEdgeId && (
+                  <div className="mt-4 pt-4 border-t border-teal-600">
+                    <h4 className="text-xs font-bold mb-2">Line Routing</h4>
+                    <div className="space-y-1">
+                      {EDGE_STYLES.map(style => (
+                        <button
+                          key={style.type}
+                          onClick={() => updateEdgeStyle(selectedEdgeId, style.type)}
+                          className="w-full text-left px-2 py-1.5 rounded text-xs transition-colors bg-teal-600 text-white hover:bg-teal-500 font-semibold"
+                        >
+                          {style.name}
+                        </button>
+                      ))}
+                    </div>
+                    <Button
+                      onClick={() => setSelectedEdgeId(null)}
+                      className="w-full mt-2 bg-red-500 hover:bg-red-600 text-white font-bold text-xs py-1"
+                    >
+                      Clear Selection
+                    </Button>
+                  </div>
+                )}
                 <div className="mt-4 pt-4 border-t border-teal-600">
                   <h4 className="text-xs font-bold mb-2">Relationships</h4>
+                  {connectMode && (
+                    <div className="mt-2 p-2 bg-teal-800 rounded text-xs text-center">
+                      <p className="text-yellow-300 font-bold">
+                        {firstNodeId ? 'Click target class' : 'Click source class'}
+                      </p>
+                    </div>
+                  )}
                   <div className="space-y-2 mb-3 overflow-y-auto">
                     {RELATIONSHIP_TYPES.map(rel => (
                       <button
@@ -898,37 +926,10 @@ const onEdgesChange = useCallback(
                   >
                     {connectMode ? 'Cancel' : 'Connect Classes'}
                   </Button>
-                  {connectMode && (
-                    <div className="mt-2 p-2 bg-teal-800 rounded text-xs text-center">
-                      <p className="text-yellow-300 font-bold">
-                        {firstNodeId ? 'Click target class' : 'Click source class'}
-                      </p>
-                    </div>
-                  )}
+                  
                 </div>
 
-                {selectedEdgeId && (
-                  <div className="mt-4 pt-4 border-t border-teal-600">
-                    <h4 className="text-xs font-bold mb-2">Line Routing</h4>
-                    <div className="space-y-1">
-                      {EDGE_STYLES.map(style => (
-                        <button
-                          key={style.type}
-                          onClick={() => updateEdgeStyle(selectedEdgeId, style.type)}
-                          className="w-full text-left px-2 py-1.5 rounded text-xs transition-colors bg-teal-600 text-white hover:bg-teal-500 font-semibold"
-                        >
-                          {style.name}
-                        </button>
-                      ))}
-                    </div>
-                    <Button
-                      onClick={() => setSelectedEdgeId(null)}
-                      className="w-full mt-2 bg-red-500 hover:bg-red-600 text-white font-bold text-xs py-1"
-                    >
-                      Clear Selection
-                    </Button>
-                  </div>
-                )}
+                
               </Card>
             </div>
 
@@ -997,10 +998,11 @@ const onEdgesChange = useCallback(
                             }`}
                           >
                             <span className="font-mono">
-                              {nodes.find(n => n.id === edge.source)?.data.className} 
-                              {" "}{edgeData.relationType === 'inheritance' ? '◁──' : edgeData.relationType === 'composition' ? '◆──' : edgeData.relationType === 'dependency' ? '┄┄>' : '──>'} 
-                              {nodes.find(n => n.id === edge.target)?.data.className}
-                            </span>
+  {(nodes.find(n => n.id === edge.source)?.data as UMLNodeData)?.className} 
+  {" "}{edgeData.relationType === 'inheritance' ? '◁──' : edgeData.relationType === 'composition' ? '◆──' : edgeData.relationType === 'dependency' ? '┄┄>' : '──>'} 
+  {(nodes.find(n => n.id === edge.target)?.data as UMLNodeData)?.className}
+</span>
+
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
