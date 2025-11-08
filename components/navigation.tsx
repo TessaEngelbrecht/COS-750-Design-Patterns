@@ -15,13 +15,13 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
     { id: "quiz" as const, label: "Quiz", number: 4 },
     { id: "results" as const, label: "Results", number: 5 },
     { id: "feedback" as const, label: "Feedback", number: 6 },
-  ]
+  ];
 
   return (
     <div className="bg-background border-b border-border py-6 px-6">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
-        {steps.map((step, index) => (
-          <div key={step.id} className="flex items-center">
+        {steps.map((step) => (
+          <div key={step.id} className="flex flex-col items-center">
             <button onClick={() => onNavigate(step.id)} className="flex flex-col items-center">
               <div
                 className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-colors ${
@@ -40,10 +40,9 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
                 {step.label}
               </span>
             </button>
-            {index < steps.length - 1 && <div className="h-1 bg-border mx-4 flex-grow min-w-8" />}
           </div>
         ))}
       </div>
     </div>
-  )
+  );
 }
