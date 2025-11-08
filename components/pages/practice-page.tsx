@@ -5,17 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { CheckCircle2, XCircle, Check } from "lucide-react"
-import {
-  getPracticeQuestions,
-  savePracticeAnswer,
-  type PracticeQuestion,
-} from "@/api/services/PracticeQuiz"
-import Image from "next/image"
+import { savePracticeAnswer, type PracticeQuestion } from "@/api/services/PracticeQuiz"
+import { generatePracticeQuizEngine } from "@/lib/practice-quiz-engine"
 import { PracticeFeedbackPage } from "@/components/pages/practice-feedback-page"
+import Image from "next/image"
 
-// TODO: Replace with actual logged-in user ID from auth context
-//const TEMP_STUDENT_ID = "f585161d-ec97-4735-9dac-071eacf7cb91"
-
+// ============ HELPER FUNCTIONS ============
 type NormalizedOption = { id: string; text: string }
 
 const toStringSafe = (v: unknown): string => {
@@ -40,6 +35,19 @@ const normalizeOptions = (opts: unknown): NormalizedOption[] => {
   })
 }
 
+const getCurrentUserId = (): string | null => {
+  if (typeof window === "undefined") return null
+  const userStr = localStorage.getItem("user")
+  if (!userStr) return null
+  try {
+    const { id } = JSON.parse(userStr)
+    return id
+  } catch {
+    return null
+  }
+}
+
+// ============ COMPONENT ============
 interface PracticePageProps {
   onNext: () => void
 }
@@ -60,28 +68,36 @@ export function PracticePage({ onNext }: PracticePageProps) {
   >({})
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now())
   const [isSaving, setIsSaving] = useState(false)
-const [showFeedback, setShowFeedback] = useState(false)
+  const [showFeedback, setShowFeedback] = useState(false)
+
+  // ============ FETCH QUESTIONS WITH ENGINE ============
+  const fetchQuestions = async (excludeIds: number[] = [], isRetake = false) => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      const studentId = getCurrentUserId()
+      if (!studentId) {
+        throw new Error("No user found. Please sign in.")
+      }
+
+      console.log("📚 Generating practice quiz with engine...")
+      const quizQuestions = await generatePracticeQuizEngine({
+        studentId,
+        excludeQuestionIds: excludeIds,
+        usePreviousResults: isRetake,
+      })
+      console.log(`✅ Engine returned ${quizQuestions.length} questions`)
+      setQuestions(quizQuestions)
+    } catch (err: any) {
+      console.error("❌ Error loading questions:", err)
+      setError(err.message || "Failed to load questions")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Fetch questions on mount
   useEffect(() => {
-    async function fetchQuestions() {
-      try {
-        setIsLoading(true)
-        console.log("📚 Fetching 10 random practice questions...")
-        const result = await getPracticeQuestions({
-          limit: 10,
-          onlyActive: true,
-        })
-        console.log(`✅ Loaded ${result.rows.length} questions:`, result.rows)
-        setQuestions(result.rows)
-      } catch (err) {
-        console.error("❌ Error fetching questions:", err)
-        setError(err instanceof Error ? err.message : "Failed to load questions")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
     fetchQuestions()
   }, [])
 
@@ -99,74 +115,36 @@ const [showFeedback, setShowFeedback] = useState(false)
     : false
   const isLastQuestion = currentQuestionIndex === questions.length - 1
 
-  // Check if fill-in-blank answer is correct
+  // ============ ANSWER CHECKING FUNCTIONS ============
   const checkFillInBlankAnswer = (
     userBlanks: Record<number, string>,
     correctAnswer: any
   ): boolean => {
     if (!correctAnswer?.blanks) return false
 
-    console.log("🔍 Checking fill-in-blank answer:", {
-      userBlanks,
-      correctBlanks: correctAnswer.blanks,
-    })
-
-    for (const correctBlank of correctAnswer.blanks) {
-      const position = correctBlank.position
+    return correctAnswer.blanks.every((blank: any) => {
+      const position = blank.position
       const userAnswer = userBlanks[position]?.trim().toLowerCase()
-      const acceptableAnswers = correctBlank.answers.map((a: string) =>
+      const acceptableAnswers = blank.answers.map((a: string) =>
         a.toLowerCase()
       )
-
-      console.log(`  Position ${position}:`, {
-        userAnswer,
-        acceptableAnswers,
-        isCorrect: acceptableAnswers.includes(userAnswer),
-      })
-
-      if (!userAnswer || !acceptableAnswers.includes(userAnswer)) {
-        return false
-      }
-    }
-
-    return true
+      return acceptableAnswers.includes(userAnswer)
+    })
   }
-function getCurrentUserId(): string | null {
-  if (typeof window === 'undefined') return null; // SSR safeguard
-  const userStr = localStorage.getItem("user");
-  if (!userStr) return null;
-  try {
-    const { id } = JSON.parse(userStr);
-    return id;
-  } catch {
-    return null;
-  }
-}
-  // Check if select-multiple answer is correct
+
   const checkSelectMultipleAnswer = (
     userAnswers: string[],
     correctAnswer: any
   ): boolean => {
-    if (!correctAnswer?.answers || !Array.isArray(correctAnswer.answers)) {
-      return false
-    }
-
-    console.log("🔍 Checking select-multiple answer:", {
-      userAnswers,
-      correctAnswers: correctAnswer.answers,
-    })
-
-    // Sort both arrays for comparison
+    if (!correctAnswer?.answers || !userAnswers) return false
     const userSorted = [...userAnswers].sort()
     const correctSorted = [...correctAnswer.answers].sort()
-
-    // Check if arrays are equal
-    if (userSorted.length !== correctSorted.length) return false
-
-    return userSorted.every((ans, idx) => ans === correctSorted[idx])
+    return (
+      userSorted.length === correctSorted.length &&
+      userSorted.every((ans, idx) => ans === correctSorted[idx])
+    )
   }
 
-  // Toggle selection for select-multiple
   const toggleMultipleSelection = (optionId: string) => {
     setSelectedMultiple((prev) => {
       if (prev.includes(optionId)) {
@@ -177,14 +155,8 @@ function getCurrentUserId(): string | null {
     })
   }
 
+  // ============ SUBMIT HANDLER ============
   const handleSubmit = async () => {
-
-    const student_id = getCurrentUserId();
-if (!student_id) {
-  // Optionally, re-authenticate or alert the user here
-  alert("No user. Please log in again.");
-  return;
-}
     if (isSaving || !currentQuestion) return
 
     let answerToSubmit: any
@@ -235,6 +207,13 @@ if (!student_id) {
 
     setIsSaving(true)
 
+    const student_id = getCurrentUserId()
+    if (!student_id) {
+      alert("No user found. Please log in again.")
+      setIsSaving(false)
+      return
+    }
+
     const timeSpentSeconds = Math.floor((Date.now() - questionStartTime) / 1000)
 
     console.log("📝 Submitting answer:", {
@@ -272,6 +251,7 @@ if (!student_id) {
     }
   }
 
+  // ============ NAVIGATION HANDLERS ============
   const handleNext = () => {
     if (isLastQuestion) {
       console.log("🎉 Practice quiz completed!")
@@ -281,8 +261,17 @@ if (!student_id) {
     }
   }
 
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex((i) => i - 1)
+    }
+  }
+
   const handleRetake = () => {
-    // Reset everything for a new quiz
+    // Get question IDs from the last quiz to exclude
+    const lastQuizIds = questions.map((q) => q.question_id)
+
+    // Reset all state
     setQuestions([])
     setCurrentQuestionIndex(0)
     setUserAnswers({})
@@ -291,39 +280,9 @@ if (!student_id) {
     setSelectedMultiple([])
     setFillInBlankAnswers({})
     setShowFeedback(false)
-    setIsLoading(true)
 
-    // Fetch new questions
-    getPracticeQuestions({
-      limit: 10,
-      onlyActive: true,
-    })
-      .then((result) => {
-        setQuestions(result.rows)
-        setIsLoading(false)
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : "Failed to load questions")
-        setIsLoading(false)
-      })
-  }
-
-  // Show feedback page after completion
-  if (showFeedback) {
-    return (
-      <PracticeFeedbackPage
-        questions={questions}
-        userAnswers={userAnswers}
-        onRetake={handleRetake}
-        onNext={onNext}
-      />
-    )
-  }
-
-  const handlePrevious = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex((i) => i - 1)
-    }
+    // Fetch new engine-driven quiz (with exclusions and adaptation)
+    fetchQuestions(lastQuizIds, true)
   }
 
   const checkAnswer = () => {
@@ -350,6 +309,19 @@ if (!student_id) {
     }
   }
 
+  // ============ SHOW FEEDBACK PAGE ============
+  if (showFeedback && questions.length > 0) {
+    return (
+      <PracticeFeedbackPage
+        questions={questions}
+        userAnswers={userAnswers}
+        onRetake={handleRetake}
+        onNext={onNext}
+      />
+    )
+  }
+
+  // ============ LOADING STATE ============
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -361,6 +333,7 @@ if (!student_id) {
     )
   }
 
+  // ============ ERROR STATE ============
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-screen p-6">
@@ -374,6 +347,7 @@ if (!student_id) {
     )
   }
 
+  // ============ NO QUESTIONS STATE ============
   if (!questions.length) {
     return (
       <div className="flex items-center justify-center min-h-screen p-6">
@@ -388,6 +362,7 @@ if (!student_id) {
 
   const isCorrect = checkAnswer()
 
+  // ============ MAIN QUIZ UI ============
   return (
     <div className="min-h-screen bg-white">
       <div className="px-4 sm:px-6 max-w-4xl mx-auto py-6">
@@ -436,17 +411,21 @@ if (!student_id) {
                     {currentQuestion.question_text}
                   </p>
 
-                  {currentQuestion.question_data?.code_snippet && (
-                    <Card className="bg-slate-900 text-white p-4 font-mono text-sm mb-4 overflow-x-auto rounded-lg">
-                      <pre className="whitespace-pre-wrap">
-                        {currentQuestion.question_data.code_snippet.replace(
-                          /\\\\/g,
-                          ""
-                        )}
-                      </pre>
-                    </Card>
-                  )}
+                  {/* Code Snippet if exists */}
+                  {/* Code Snippet - Fixed \n handling */}
+{currentQuestion.question_data?.code_snippet && (
+  <Card className="bg-slate-900 text-white p-4 font-mono text-sm mb-4 overflow-x-auto rounded-lg">
+    <pre className="whitespace-pre-wrap">
+      {currentQuestion.question_data.code_snippet
+        .replace(/\\\\n/g, '\n')  // Handle double-escaped newlines
+        .replace(/\\n/g, '\n')     // Handle single-escaped newlines
+        .replace(/\\\\/g, '')}     // Remove any remaining double backslashes
+    </pre>
+  </Card>
+)}
 
+
+                  {/* Blank inputs */}
                   <div className="space-y-4">
                     {currentQuestion.correct_answer?.blanks?.map(
                       (blank: any) => {
@@ -588,85 +567,92 @@ if (!student_id) {
                 </div>
               )}
 
-             {/* Identify error / code fix */}
-{currentQuestion.question_format === "identify-error" && (
-  <div>
-    <p className="text-slate-800 mb-3 font-semibold text-lg">
-      {currentQuestion.question_text}
-    </p>
-    {/* Show code snippet if exists */}
-    {currentQuestion.question_data?.code_snippet && (
-      <Card className="bg-slate-900 text-white p-4 font-mono text-sm mb-4 overflow-x-auto rounded-lg">
-        <pre className="whitespace-pre-wrap">
-          {currentQuestion.question_data.code_snippet.replace(/\\n/g, '\n')}
-        </pre>
-      </Card>
-    )}
-
-    {/* If options exist, show as multiple choice */}
-    {currentQuestion.question_data?.options &&
-     Array.isArray(currentQuestion.question_data.options) ? (
-      <div>
-        <p className="text-sm text-slate-600 mb-3 italic">
-          Select the correct answer
-        </p>
-        <div className="mb-4 space-y-2">
-          {normalizeOptions(currentQuestion.question_data.options).map(
-            (opt) => (
-              <button
-                key={opt.id}
-                onClick={() => !isSubmitted && setCurrentAnswer(opt.id)}
-                disabled={isSubmitted}
-                className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
-                  currentAnswer === opt.id
-                    ? "border-teal-700 bg-teal-50"
-                    : "border-slate-200 hover:border-teal-500"
-                } ${
-                  isSubmitted
-                    ? "cursor-not-allowed opacity-70"
-                    : "cursor-pointer"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      currentAnswer === opt.id
-                        ? "border-teal-700 bg-teal-700"
-                        : "border-slate-300"
-                    }`}
-                  >
-                    {currentAnswer === opt.id && (
-                      <div className="w-2 h-2 bg-white rounded-full"></div>
-                    )}
-                  </div>
-                  <p className="text-slate-800">
-                    <span className="font-semibold mr-2">{opt.id})</span>
-                    {opt.text}
+              {/* Identify error / code fix */}
+              {currentQuestion.question_format === "identify-error" && (
+                <div>
+                  <p className="text-slate-800 mb-3 font-semibold text-lg">
+                    {currentQuestion.question_text}
                   </p>
-                </div>
-              </button>
-            )
-          )}
-        </div>
-      </div>
-    ) : (
-      /* Otherwise show text input for line number/fix */
-      <div>
-        <label className="block text-teal-700 font-semibold mb-2">
-          Your Answer (e.g., Line 4 or describe the issue)
-        </label>
-        <Input
-          value={currentAnswer}
-          onChange={(e) => setCurrentAnswer(e.target.value)}
-          placeholder="Enter line number or describe the fix"
-          disabled={isSubmitted}
-          className="border-2 border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-600/40 rounded-lg"
-        />
-      </div>
-    )}
-  </div>
-)}
 
+                  {/* Show code snippet if exists */}
+                  {currentQuestion.question_data?.code_snippet && (
+                    <Card className="bg-slate-900 text-white p-4 font-mono text-sm mb-4 overflow-x-auto rounded-lg">
+                      <pre className="whitespace-pre-wrap">
+                        {currentQuestion.question_data.code_snippet.replace(
+                          /\\n/g,
+                          "\n"
+                        )}
+                      </pre>
+                    </Card>
+                  )}
+
+                  {/* If options exist, show as multiple choice */}
+                  {currentQuestion.question_data?.options &&
+                  Array.isArray(currentQuestion.question_data.options) ? (
+                    <div>
+                      <p className="text-sm text-slate-600 mb-3 italic">
+                        Select the correct answer
+                      </p>
+                      <div className="mb-4 space-y-2">
+                        {normalizeOptions(
+                          currentQuestion.question_data.options
+                        ).map((opt) => (
+                          <button
+                            key={opt.id}
+                            onClick={() =>
+                              !isSubmitted && setCurrentAnswer(opt.id)
+                            }
+                            disabled={isSubmitted}
+                            className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
+                              currentAnswer === opt.id
+                                ? "border-teal-700 bg-teal-50"
+                                : "border-slate-200 hover:border-teal-500"
+                            } ${
+                              isSubmitted
+                                ? "cursor-not-allowed opacity-70"
+                                : "cursor-pointer"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                  currentAnswer === opt.id
+                                    ? "border-teal-700 bg-teal-700"
+                                    : "border-slate-300"
+                                }`}
+                              >
+                                {currentAnswer === opt.id && (
+                                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                                )}
+                              </div>
+                              <p className="text-slate-800">
+                                <span className="font-semibold mr-2">
+                                  {opt.id})
+                                </span>
+                                {opt.text}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Otherwise show text input for line number/fix */
+                    <div>
+                      <label className="block text-teal-700 font-semibold mb-2">
+                        Your Answer (e.g., Line 4 or describe the issue)
+                      </label>
+                      <Input
+                        value={currentAnswer}
+                        onChange={(e) => setCurrentAnswer(e.target.value)}
+                        placeholder="Enter line number or describe the fix"
+                        disabled={isSubmitted}
+                        className="border-2 border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-600/40 rounded-lg"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Submit Button */}
               {!isSubmitted && (
