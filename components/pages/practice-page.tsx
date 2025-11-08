@@ -14,7 +14,7 @@ import Image from "next/image"
 import { PracticeFeedbackPage } from "@/components/pages/practice-feedback-page"
 
 // TODO: Replace with actual logged-in user ID from auth context
-const TEMP_STUDENT_ID = "f585161d-ec97-4735-9dac-071eacf7cb91"
+//const TEMP_STUDENT_ID = "f585161d-ec97-4735-9dac-071eacf7cb91"
 
 type NormalizedOption = { id: string; text: string }
 
@@ -131,7 +131,17 @@ const [showFeedback, setShowFeedback] = useState(false)
 
     return true
   }
-
+function getCurrentUserId(): string | null {
+  if (typeof window === 'undefined') return null; // SSR safeguard
+  const userStr = localStorage.getItem("user");
+  if (!userStr) return null;
+  try {
+    const { id } = JSON.parse(userStr);
+    return id;
+  } catch {
+    return null;
+  }
+}
   // Check if select-multiple answer is correct
   const checkSelectMultipleAnswer = (
     userAnswers: string[],
@@ -168,6 +178,13 @@ const [showFeedback, setShowFeedback] = useState(false)
   }
 
   const handleSubmit = async () => {
+
+    const student_id = getCurrentUserId();
+if (!student_id) {
+  // Optionally, re-authenticate or alert the user here
+  alert("No user. Please log in again.");
+  return;
+}
     if (isSaving || !currentQuestion) return
 
     let answerToSubmit: any
@@ -231,7 +248,7 @@ const [showFeedback, setShowFeedback] = useState(false)
 
     try {
       await savePracticeAnswer({
-        student_id: TEMP_STUDENT_ID,
+        student_id,
         question_id: currentQuestion.question_id,
         student_answer: answerToSubmit,
         is_correct: isCorrect,
@@ -577,7 +594,6 @@ const [showFeedback, setShowFeedback] = useState(false)
     <p className="text-slate-800 mb-3 font-semibold text-lg">
       {currentQuestion.question_text}
     </p>
-    
     {/* Show code snippet if exists */}
     {currentQuestion.question_data?.code_snippet && (
       <Card className="bg-slate-900 text-white p-4 font-mono text-sm mb-4 overflow-x-auto rounded-lg">
@@ -588,7 +604,7 @@ const [showFeedback, setShowFeedback] = useState(false)
     )}
 
     {/* If options exist, show as multiple choice */}
-    {currentQuestion.question_data?.options && 
+    {currentQuestion.question_data?.options &&
      Array.isArray(currentQuestion.question_data.options) ? (
       <div>
         <p className="text-sm text-slate-600 mb-3 italic">
