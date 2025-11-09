@@ -18,7 +18,7 @@ import {
 } from "recharts";
 import { useGetGraphsDataQuery } from "@/api/services/EducatorOverviewStatsGraphs";
 import { Popover, Transition } from "@headlessui/react";
-
+import { ScreenSizeChecker } from "@/components/uml-builder/ScreenSizeChecker";
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 function GraphHeading({ title, helpText }: { title: string; helpText: string }) {
@@ -76,60 +76,62 @@ export default function LearningAreasTab() {
   };
 
   return (
-    <div className="space-y-10">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <ScreenSizeChecker>
+      <div className="space-y-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+            <GraphHeading
+              title="Bloom’s Taxonomy — Performance vs Coverage"
+              helpText="This radar chart shows student performance (scores) and coverage (number of questions attempted) across each Bloom level. It helps identify areas of strength and where more practice may be needed."
+            />
+            <ResponsiveContainer width="100%" height={350}>
+              <RadarChart data={bloomRadar}>
+                <PolarGrid stroke="#E0E0E0" />
+                <PolarAngleAxis dataKey="level" />
+                <PolarRadiusAxis />
+                <Radar
+                  name="Performance"
+                  dataKey="performance"
+                  stroke="#0D9488"
+                  fill="#0D9488"
+                  fillOpacity={0.5}
+                />
+                <Radar name="Coverage" dataKey="coverage" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.3} />
+                <Legend />
+                <Tooltip />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+            <GraphHeading
+              title="Question Sections Overview"
+              helpText="This polar area chart shows the number of questions per section. It helps educators see which sections have more or fewer questions in the quiz."
+            />
+            <ReactApexChart options={polarOptions} series={polarSeries} type="polarArea" height={350} />
+          </div>
+        </div>
+
         <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
           <GraphHeading
-            title="Bloom’s Taxonomy — Performance vs Coverage"
-            helpText="This radar chart shows student performance (scores) and coverage (number of questions attempted) across each Bloom level. It helps identify areas of strength and where more practice may be needed."
+            title="Questions by Bloom & Difficulty"
+            helpText="This stacked bar chart shows how many questions exist for each Bloom level, broken down by difficulty (Easy, Medium, Hard). It helps identify which Bloom levels may need more challenging or easier questions."
           />
           <ResponsiveContainer width="100%" height={350}>
-            <RadarChart data={bloomRadar}>
-              <PolarGrid stroke="#E0E0E0" />
-              <PolarAngleAxis dataKey="level" />
-              <PolarRadiusAxis />
-              <Radar
-                name="Performance"
-                dataKey="performance"
-                stroke="#0D9488"
-                fill="#0D9488"
-                fillOpacity={0.5}
-              />
-              <Radar name="Coverage" dataKey="coverage" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.3} />
-              <Legend />
+            <BarChart data={questionsByBloomDifficulty} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
+              <XAxis dataKey="bloom" label={{ value: "Bloom Level", position: "insideBottom", dy: 15 }} />
+              <YAxis label={{ value: "Number of Questions", angle: -90, position: "insideLeft", dy: 60 }} />
               <Tooltip />
-            </RadarChart>
+              <Bar dataKey="Easy" stackId="a" fill="#66BB6A" />
+              <Bar dataKey="Medium" stackId="a" fill="#FDD835" />
+              <Bar dataKey="Hard" stackId="a" fill="#EF5350" />
+              <Legend verticalAlign="top" align="right" />
+            </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-          <GraphHeading
-            title="Question Sections Overview"
-            helpText="This polar area chart shows the number of questions per section. It helps educators see which sections have more or fewer questions in the quiz."
-          />
-          <ReactApexChart options={polarOptions} series={polarSeries} type="polarArea" height={350} />
-        </div>
       </div>
-
-      <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-        <GraphHeading
-          title="Questions by Bloom & Difficulty"
-          helpText="This stacked bar chart shows how many questions exist for each Bloom level, broken down by difficulty (Easy, Medium, Hard). It helps identify which Bloom levels may need more challenging or easier questions."
-        />
-        <ResponsiveContainer width="100%" height={350}>
-          <BarChart data={questionsByBloomDifficulty} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-            <XAxis dataKey="bloom" label={{ value: "Bloom Level", position: "insideBottom", dy: 15 }} />
-            <YAxis label={{ value: "Number of Questions", angle: -90, position: "insideLeft", dy: 60 }} />
-            <Tooltip />
-            <Bar dataKey="Easy" stackId="a" fill="#66BB6A" />
-            <Bar dataKey="Medium" stackId="a" fill="#FDD835" />
-            <Bar dataKey="Hard" stackId="a" fill="#EF5350" />
-            <Legend verticalAlign="top" align="right" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-    </div>
+    </ScreenSizeChecker>
   );
 }
