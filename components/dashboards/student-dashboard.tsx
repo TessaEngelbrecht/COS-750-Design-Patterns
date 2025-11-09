@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { StudentHeader } from "@/components/dashboards/student-header"
 import { StudentNavigation } from "@/components/dashboards/student-navigation"
-import { SelfReflectionPage } from "@/components/pages/self-reflection-page"
+import SelfReflectionPage from "@/components/pages/self-reflection-page"
 import { InstructionsPage } from "@/components/pages/instructions-page"
 import { PracticePage } from "@/components/pages/practice-page"
 import { PracticeFeedbackPage } from "@/components/pages/practice-feedback-page"
@@ -30,8 +30,19 @@ interface StudentDashboardProps {
 }
 
 export function StudentDashboard({ userName, onLogout }: StudentDashboardProps) {
-  const [currentPage, setCurrentPage] = useState<PageType>("self-reflection")
+  const [currentPage, setCurrentPage] = useState<PageType | string>('')
   const [practiceAnswers, setPracticeAnswers] = useState<any[]>([])
+  const user = JSON.parse(localStorage.getItem("user")||"{}")
+  const { has_seen_self_reflection }  = user
+  useEffect(() => {
+    // Check if the user has seen the self-reflection page
+    if (!has_seen_self_reflection) {
+      setCurrentPage("self-reflection")
+    } else { 
+      setCurrentPage("instructions")
+    }
+  }, [has_seen_self_reflection])
+
 
   const renderPage = () => {
     switch (currentPage) {
