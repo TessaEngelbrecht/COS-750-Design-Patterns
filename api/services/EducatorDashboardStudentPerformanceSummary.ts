@@ -53,58 +53,77 @@ export const educatorDashboardApi = createApi({
   endpoints: (builder) => ({
     getStudentsPerformance: builder.query<DashboardListResult, DashboardListArgs | void>({
       async queryFn(args) {
-        const page = args?.page ?? 1
-        const pageSize = args?.pageSize ?? 20
-        const from = (page - 1) * pageSize
-        const to = from + pageSize - 1
+        const page = args?.page ?? 1;
+        const pageSize = args?.pageSize ?? 20;
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
 
-        let q = supabase
-          .from("student_performance_summary")
-          .select(
-            "*, users!student_performance_summary_student_id_fkey(first_name,last_name,email)",
-            { count: "exact" }
-          )
-          .order(args?.sortBy ?? "created_at", { ascending: args?.ascending ?? false })
-          .range(from, to)
+        try {
+          let q = supabase
+            .from("student_performance_summary")
+            .select(
+              "*, users!student_performance_summary_student_id_fkey(first_name,last_name,email)",
+              { count: "exact" }
+            )
+            .order(args?.sortBy ?? "created_at", { ascending: args?.ascending ?? false })
+            .range(from, to);
 
-        if (args?.onlyFlagged) q = q.eq("flagged_for_intervention", true)
+          if (args?.onlyFlagged) q = q.eq("flagged_for_intervention", true);
 
-        if (args?.searchText?.trim())
-          q = q.ilike(
-            "users!student_performance_summary_student_id_fkey.first_name",
-            `%${args.searchText.trim()}%`
-          )
+          if (args?.searchText?.trim())
+            q = q.ilike(
+              "users!student_performance_summary_student_id_fkey.first_name",
+              `%${args.searchText.trim()}%`
+            );
 
-        const { data, error, count } = await q
+          const { data, error, count } = await q;
+          if (error) return { error: mapError(error) };
 
-        if (error) return { error: mapError(error) }
+          const studentIds = (data ?? []).map((item: any) => item.student_id).filter(Boolean);
 
-        const rows = (data ?? []).map((item: any) => ({
-          ...item,
-          users: item.users
-            ? {
+          let attemptsMap: Record<string, number> = {};
+          if (studentIds.length > 0) {
+            const { data: attemptData, error: attemptError } = await supabase
+              .from("practice_quiz_results")
+              .select("student_id, attempt_number")
+              .in("student_id", studentIds);
+
+            if (!attemptError && attemptData) {
+              attemptData.forEach((row: any) => {
+                const sid = row.student_id;
+                const attempt = Number(row.attempt_number ?? 0);
+                attemptsMap[sid] = Math.max(attemptsMap[sid] ?? 0, attempt);
+              });
+            }
+          }
+
+          const rows = (data ?? []).map((item: any) => ({
+            ...item,
+            practice_quiz_attempts: attemptsMap[item.student_id] ?? 0, // use dynamic attempts
+            users: item.users
+              ? {
                 ...item.users,
                 full_name: `${item.users.first_name ?? ""} ${item.users.last_name ?? ""}`.trim(),
               }
-            : undefined,
-        }))
+              : undefined,
+          }));
 
-        return {
-          data: {
-            rows,
-            total: count ?? 0,
-          },
+          return {
+            data: {
+              rows,
+              total: count ?? 0,
+            },
+          };
+        } catch (err: any) {
+          return { error: { status: "UNKNOWN_ERROR", error: String(err?.message ?? err) } };
         }
       },
       providesTags: (result) =>
         result
           ? [
-              ...result.rows.map((r) => ({
-                type: "StudentPerformance" as const,
-                id: r.summary_id,
-              })),
-              { type: "StudentPerformance" as const, id: "LIST" },
-            ]
+            ...result.rows.map((r) => ({ type: "StudentPerformance" as const, id: r.summary_id })),
+            { type: "StudentPerformance" as const, id: "LIST" },
+          ]
           : [{ type: "StudentPerformance" as const, id: "LIST" }],
     }),
   }),

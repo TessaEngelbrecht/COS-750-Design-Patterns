@@ -62,8 +62,8 @@ export default function StudentsTab() {
               <p className="text-sm font-semibold text-green-500">{student.practice_quiz_avg_score ?? 0}%</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 font-semibold">Attempts</p>
-              <p className="text-sm font-semibold text-blue-600">{student.final_quiz_attempts ?? 0}</p>
+              <p className="text-xs text-gray-500 font-semibold">Practice Attempts</p>
+              <p className="text-sm font-semibold text-orange-600">{student.practice_quiz_attempts ?? 0}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 font-semibold">Time Spent</p>
