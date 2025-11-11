@@ -32,7 +32,7 @@ type CognitiveBucket = { level: BloomLevel; score: number; questions: number };
 
 interface ResultsPageProps {
   onNext: () => void;
-  email: string;
+  email?: string;
   practicePct?: number;
 }
 
@@ -42,7 +42,6 @@ function pct(n: number, d: number) {
 function fmtHours(totalSeconds: number) {
   return totalSeconds ? `${(totalSeconds / 3600).toFixed(1)}h` : "0h";
 }
-
 type Recommendation = { title: string; bullets: string[] };
 
 function makeLevelTip(level: BloomLevel): string[] {
@@ -59,7 +58,7 @@ function makeLevelTip(level: BloomLevel): string[] {
       ];
     case "Apply":
       return [
-        "Implement a small Observer example (e.g., WeatherStation → Displays) in your preferred language.",
+        "Implement a small Observer example (e.g., WeatherStation → Displays).",
         "Refactor an existing class to emit updates via Observer instead of direct calls.",
       ];
     case "Analyze":
@@ -69,12 +68,12 @@ function makeLevelTip(level: BloomLevel): string[] {
       ];
     case "Evaluate":
       return [
-        "Review code snippets and judge correctness of attach/detach/notify implementations.",
-        "Check for edge cases: re-entrancy, observer self-detach, and notification storms.",
+        "Review code and judge correctness of attach/detach/notify implementations.",
+        "Check for edge cases: re-entrancy, self-detach, notification storms.",
       ];
     case "Create":
       return [
-        "Design an event system with batched notifications and throttling; justify design choices.",
+        "Design an event system with batched notifications and throttling; justify choices.",
         "Extend the pattern with async delivery using a queue or thread pool.",
       ];
     default:
@@ -82,39 +81,76 @@ function makeLevelTip(level: BloomLevel): string[] {
   }
 }
 
-export function ResultsPage({ onNext, email, practicePct }: ResultsPageProps) {
+export function ResultsPage({
+  onNext,
+  email: emailProp,
+  practicePct,
+}: ResultsPageProps) {
   const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState<string | null>(null);
   const [rows, setRows] = useState<RowResult[]>([]);
-  const [studentId, setStudentId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      if (emailProp) {
+        if (!cancelled) setEmail(emailProp);
+        return;
+      }
+
+      const fromLS =
+        typeof window !== "undefined" ? localStorage.getItem("email") : null;
+      if (fromLS) {
+        if (!cancelled) setEmail(fromLS);
+        return;
+      }
+
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        const authEmail = session?.session?.user?.email ?? null;
+        if (!cancelled) setEmail(authEmail);
+      } catch {
+        if (!cancelled) setEmail(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [emailProp]);
 
   useEffect(() => {
     let mounted = true;
 
     (async () => {
-      try {
-        setLoading(true);
+      setLoading(true);
+      setLoadError(null);
 
-        let activeEmail = email?.trim();
-        // TODO: remove hard-code after wiring session/header email
-        activeEmail = "alice.johnson@university.ac.za";
-        if (!activeEmail) {
-          console.error("ResultsPage: missing email prop");
-          setLoading(false);
+      try {
+        if (!email) {
+          if (mounted) {
+            setRows([]);
+            setLoading(false);
+          }
           return;
         }
 
         const { data: userRow, error: userErr } = await supabase
           .from("users")
           .select("id")
-          .eq("email", activeEmail)
+          .eq("email", email.trim())
           .maybeSingle();
+        if (userErr) throw userErr;
 
-        if (userErr || !userRow) {
-          console.error("Cannot load user by email", userErr);
-          setLoading(false);
+        if (!userRow?.id) {
+          if (mounted) {
+            setRows([]);
+            setLoading(false);
+          }
           return;
         }
-        if (mounted) setStudentId(userRow.id);
 
         const { data: resultRows, error: resErr } = await supabase
           .from("final_quiz_results")
@@ -127,7 +163,7 @@ export function ResultsPage({ onNext, email, practicePct }: ResultsPageProps) {
             points_earned,
             time_spent_seconds,
             cheat_sheet_accessed,
-            final_quiz_questions:final_quiz_questions!inner (
+            final_quiz_questions!inner (
               bloom_level,
               points
             )
@@ -136,11 +172,7 @@ export function ResultsPage({ onNext, email, practicePct }: ResultsPageProps) {
           .eq("student_id", userRow.id)
           .order("question_id", { ascending: true });
 
-        if (resErr) {
-          console.error("results query error:", resErr);
-          setLoading(false);
-          return;
-        }
+        if (resErr) throw resErr;
 
         type RawRow = Omit<RowResult, "final_quiz_questions"> & {
           final_quiz_questions:
@@ -166,9 +198,11 @@ export function ResultsPage({ onNext, email, practicePct }: ResultsPageProps) {
           setRows(normalized);
           setLoading(false);
         }
-      } catch (e) {
-        console.error("ResultsPage fatal error:", e);
-        if (mounted) setLoading(false);
+      } catch (e: any) {
+        if (mounted) {
+          setLoadError(e?.message || String(e));
+          setLoading(false);
+        }
       }
     })();
 
@@ -183,10 +217,8 @@ export function ResultsPage({ onNext, email, practicePct }: ResultsPageProps) {
       const correct = rows.filter((r) => r.is_correct).length;
       const finalPct = pct(correct, total);
       const cheatAccesses = rows.filter((r) => !!r.cheat_sheet_accessed).length;
-      const timeSpent = rows.reduce(
-        (acc, r) => acc + (r.time_spent_seconds ?? 0),
-        0
-      );
+
+      const timeSpent = rows.length ? rows[0]?.time_spent_seconds ?? 0 : 0;
 
       const levels: BloomLevel[] = [
         "Remember",
@@ -227,6 +259,7 @@ export function ResultsPage({ onNext, email, practicePct }: ResultsPageProps) {
 
   const improvementPct =
     typeof practicePct === "number" ? finalPct - practicePct : undefined;
+
   const bloomLow = cognitive.some((c) => c.questions > 0 && c.score < 50);
   const needsIntervention = bloomLow || cheatAccesses >= 20;
 
@@ -246,14 +279,14 @@ export function ResultsPage({ onNext, email, practicePct }: ResultsPageProps) {
       ? {
           kind: "warn",
           title: "CONGRATULATIONS!",
-          msg: "You have completed the Observer Pattern module - There is some intervention needed.",
+          msg: "You have completed the Observer Pattern module — some intervention is recommended.",
           bg: "bg-[#FFFF00]/50",
           icon: "/icons/icon_one.svg",
         }
       : {
           kind: "pass",
           title: "CONGRATULATIONS!",
-          msg: "You have completed the Observer Pattern module",
+          msg: "You have completed the Observer Pattern module.",
           bg: "bg-[#C7DCF2]",
           icon: "/icons/icon_three.svg",
         };
@@ -311,7 +344,6 @@ export function ResultsPage({ onNext, email, practicePct }: ResultsPageProps) {
       .filter((c) => c.questions > 0)
       .sort((a, b) => a.score - b.score)
       .slice(0, 2);
-
     if (weak.length) {
       recs.push({
         title: "Targeted Skill Focus",
@@ -319,28 +351,6 @@ export function ResultsPage({ onNext, email, practicePct }: ResultsPageProps) {
           `Focus on "${w.level}" (current ${w.score}%).`,
           ...makeLevelTip(w.level),
         ]),
-      });
-    }
-
-    const higherOrderWeak = cognitive
-      .filter(
-        (c) =>
-          (c.level === "Apply" ||
-            c.level === "Analyze" ||
-            c.level === "Create") &&
-          c.questions > 0 &&
-          c.score < 60
-      )
-      .map((c) => c.level);
-
-    if (higherOrderWeak.length) {
-      recs.push({
-        title: "Mini-Project (1–2 hours)",
-        bullets: [
-          "Implement Observer for a stock-ticker dashboard (Subject: Ticker; Observers: UI widgets).",
-          "Add both push and pull variants; measure changes and discuss trade-offs.",
-          "Prevent notification storms with a queue or throttle; document your design choice.",
-        ],
       });
     }
 
@@ -390,6 +400,14 @@ export function ResultsPage({ onNext, email, practicePct }: ResultsPageProps) {
     );
   }
 
+  if (loadError) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-white p-6 text-red-600">
+        Couldn’t load results: {loadError}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <div className="px-6 pb-8 max-w-7xl mx-auto pt-4">
@@ -424,14 +442,16 @@ export function ResultsPage({ onNext, email, practicePct }: ResultsPageProps) {
           <div className="border-l-8 border-pink-500 shadow-md rounded-lg bg-white p-4">
             <p className="text-md text-pink-500">Improvement</p>
             <div className="text-4xl font-bold pt-4">
-              {typeof improvementPct === "number" ? (
+              {typeof practicePct === "number" ? (
                 <span
                   className={
-                    improvementPct >= 0 ? "text-green-600" : "text-red-600"
+                    finalPct - practicePct >= 0
+                      ? "text-green-600"
+                      : "text-red-600"
                   }
                 >
-                  {improvementPct >= 0 ? "+" : ""}
-                  {improvementPct}%
+                  {finalPct - practicePct >= 0 ? "+" : ""}
+                  {finalPct - practicePct}%
                 </span>
               ) : (
                 <span className="text-slate-400">—</span>

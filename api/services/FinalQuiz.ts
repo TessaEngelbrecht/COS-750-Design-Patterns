@@ -45,6 +45,7 @@ export type ListArgs = {
   onlyActive?: boolean;
   sortBy?: keyof FinalQuizQuestion;
   ascending?: boolean;
+  noPagination?: boolean;
 };
 
 export type ListResult = { rows: FinalQuizQuestion[]; total: number };
@@ -61,20 +62,17 @@ export const finalQuizApi = createApi({
   endpoints: (builder) => ({
     getFinalQuestions: builder.query<ListResult, ListArgs | void>({
       async queryFn(args) {
-        const page = args?.page ?? 1;
-        const pageSize = args?.pageSize ?? 20;
-        const from = (page - 1) * pageSize;
-        const to = from + pageSize - 1;
+        const onlyActive = args?.onlyActive ?? true;
+        const sortBy = (args?.sortBy as string) ?? "question_id";
+        const ascending = args?.ascending ?? true;
+        const noPagination = !!args?.noPagination;
 
         let q = supabase
           .from("final_quiz_questions")
-          .select("*", { count: "exact" })
-          .order(args?.sortBy ?? "question_id", {
-            ascending: args?.ascending ?? true,
-          })
-          .range(from, to);
+          .select("*", { count: noPagination ? undefined : "exact" })
+          .order(sortBy, { ascending });
 
-        if (args?.onlyActive ?? true) q = q.eq("is_active", true);
+        if (onlyActive) q = q.eq("is_active", true);
         if (args?.sections?.length) q = q.in("section", args.sections);
         if (args?.blooms?.length) q = q.in("bloom_level", args.blooms);
         if (args?.difficulties?.length)
@@ -83,14 +81,62 @@ export const finalQuizApi = createApi({
         if (args?.searchText?.trim())
           q = q.ilike("question_text", `%${args.searchText.trim()}%`);
 
+        if (!noPagination) {
+          const page = args?.page ?? 1;
+          const pageSize = args?.pageSize ?? 20;
+          const from = (page - 1) * pageSize;
+          const to = from + pageSize - 1;
+          q = q.range(from, to);
+        }
+
         const { data, error, count } = await q;
         if (error) return { error: mapError(error) };
-        return {
-          data: {
-            rows: (data ?? []) as FinalQuizQuestion[],
-            total: count ?? 0,
-          },
-        };
+
+        const rows = (data ?? []) as FinalQuizQuestion[];
+        const total = typeof count === "number" ? count : rows.length;
+
+        return { data: { rows, total } };
+      },
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.rows.map((r) => ({
+                type: "FinalQuizQuestions" as const,
+                id: r.question_id,
+              })),
+              { type: "FinalQuizQuestions" as const, id: "LIST" },
+            ]
+          : [{ type: "FinalQuizQuestions" as const, id: "LIST" }],
+    }),
+
+    getFinalQuestionsAll: builder.query<
+      ListResult,
+      Omit<ListArgs, "page" | "pageSize" | "noPagination"> | void
+    >({
+      async queryFn(args) {
+        const onlyActive = args?.onlyActive ?? true;
+        const sortBy = (args?.sortBy as string) ?? "question_id";
+        const ascending = args?.ascending ?? true;
+
+        let q = supabase
+          .from("final_quiz_questions")
+          .select("*")
+          .order(sortBy, { ascending });
+
+        if (onlyActive) q = q.eq("is_active", true);
+        if (args?.sections?.length) q = q.in("section", args.sections);
+        if (args?.blooms?.length) q = q.in("bloom_level", args.blooms);
+        if (args?.difficulties?.length)
+          q = q.in("difficulty_level", args.difficulties);
+        if (args?.formats?.length) q = q.in("question_format", args.formats);
+        if (args?.searchText?.trim())
+          q = q.ilike("question_text", `%${args.searchText.trim()}%`);
+
+        const { data, error } = await q;
+        if (error) return { error: mapError(error) };
+
+        const rows = (data ?? []) as FinalQuizQuestion[];
+        return { data: { rows, total: rows.length } };
       },
       providesTags: (result) =>
         result
@@ -106,4 +152,5 @@ export const finalQuizApi = createApi({
   }),
 });
 
-export const { useGetFinalQuestionsQuery } = finalQuizApi;
+export const { useGetFinalQuestionsQuery, useGetFinalQuestionsAllQuery } =
+  finalQuizApi;
