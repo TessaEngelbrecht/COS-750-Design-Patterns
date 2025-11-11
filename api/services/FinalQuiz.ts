@@ -1,6 +1,6 @@
-import { supabase } from "@/lib/supebase";
 import { createApi, fakeBaseQuery } from "@reduxjs/toolkit/query/react";
 import type { PostgrestError } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supebase";
 
 export type FinalQuizQuestion = {
   question_id: number;
@@ -25,8 +25,8 @@ export type FinalQuizQuestion = {
     | "identify-error"
     | "uml-interactive"
     | "drag-drop";
-  question_text: unknown;
-  question_data: unknown;
+  question_text: string;
+  question_data: Record<string, unknown>;
   correct_answer: unknown;
   points: number | null;
   created_at: string | null;
@@ -35,17 +35,11 @@ export type FinalQuizQuestion = {
 };
 
 export type ListArgs = {
-  page?: number;
-  pageSize?: number;
-  searchText?: string;
   sections?: FinalQuizQuestion["section"][];
   blooms?: FinalQuizQuestion["bloom_level"][];
   difficulties?: FinalQuizQuestion["difficulty_level"][];
   formats?: FinalQuizQuestion["question_format"][];
   onlyActive?: boolean;
-  sortBy?: keyof FinalQuizQuestion;
-  ascending?: boolean;
-  noPagination?: boolean;
 };
 
 export type ListResult = { rows: FinalQuizQuestion[]; total: number };
@@ -55,47 +49,44 @@ const mapError = (e: PostgrestError) => ({
   error: e.message,
 });
 
+interface HasFilters {
+  eq: (col: string, val: unknown) => any;
+  in: (col: string, vals: unknown[]) => any;
+  ilike: (col: string, pattern: string) => any;
+}
+
+const applyCommonFilters = <T extends HasFilters>(
+  q: T,
+  args?: Omit<ListArgs, "page" | "pageSize" | "noPagination">
+): T => {
+  const onlyActive = args?.onlyActive ?? true;
+  let qb = q;
+  if (onlyActive) qb = qb.eq("is_active", true);
+  if (args?.sections?.length) qb = qb.in("section", args.sections);
+  if (args?.blooms?.length) qb = qb.in("bloom_level", args.blooms);
+  if (args?.difficulties?.length)
+    qb = qb.in("difficulty_level", args.difficulties);
+  if (args?.formats?.length) qb = qb.in("question_format", args.formats);
+  return qb;
+};
+
 export const finalQuizApi = createApi({
   reducerPath: "finalQuizApi",
   baseQuery: fakeBaseQuery(),
   tagTypes: ["FinalQuizQuestions"],
   endpoints: (builder) => ({
-    getFinalQuestions: builder.query<ListResult, ListArgs | void>({
+    getFinalQuestions: builder.query<ListResult, ListArgs | undefined>({
       async queryFn(args) {
-        const onlyActive = args?.onlyActive ?? true;
-        const sortBy = (args?.sortBy as string) ?? "question_id";
-        const ascending = args?.ascending ?? true;
-        const noPagination = !!args?.noPagination;
+        let q = supabase.from("final_quiz_questions").select("*");
 
-        let q = supabase
-          .from("final_quiz_questions")
-          .select("*", { count: noPagination ? undefined : "exact" })
-          .order(sortBy, { ascending });
-
-        if (onlyActive) q = q.eq("is_active", true);
-        if (args?.sections?.length) q = q.in("section", args.sections);
-        if (args?.blooms?.length) q = q.in("bloom_level", args.blooms);
-        if (args?.difficulties?.length)
-          q = q.in("difficulty_level", args.difficulties);
-        if (args?.formats?.length) q = q.in("question_format", args.formats);
-        if (args?.searchText?.trim())
-          q = q.ilike("question_text", `%${args.searchText.trim()}%`);
-
-        if (!noPagination) {
-          const page = args?.page ?? 1;
-          const pageSize = args?.pageSize ?? 20;
-          const from = (page - 1) * pageSize;
-          const to = from + pageSize - 1;
-          q = q.range(from, to);
-        }
+        q = applyCommonFilters(q, args);
 
         const { data, error, count } = await q;
-        if (error) return { error: mapError(error) };
+        if (error) return { error: mapError(error) } as const;
 
         const rows = (data ?? []) as FinalQuizQuestion[];
         const total = typeof count === "number" ? count : rows.length;
-
-        return { data: { rows, total } };
+        return { data: { rows, total } } as const;
       },
       providesTags: (result) =>
         result
@@ -111,32 +102,17 @@ export const finalQuizApi = createApi({
 
     getFinalQuestionsAll: builder.query<
       ListResult,
-      Omit<ListArgs, "page" | "pageSize" | "noPagination"> | void
+      Omit<ListArgs, "page" | "pageSize" | "noPagination"> | undefined
     >({
       async queryFn(args) {
-        const onlyActive = args?.onlyActive ?? true;
-        const sortBy = (args?.sortBy as string) ?? "question_id";
-        const ascending = args?.ascending ?? true;
-
-        let q = supabase
-          .from("final_quiz_questions")
-          .select("*")
-          .order(sortBy, { ascending });
-
-        if (onlyActive) q = q.eq("is_active", true);
-        if (args?.sections?.length) q = q.in("section", args.sections);
-        if (args?.blooms?.length) q = q.in("bloom_level", args.blooms);
-        if (args?.difficulties?.length)
-          q = q.in("difficulty_level", args.difficulties);
-        if (args?.formats?.length) q = q.in("question_format", args.formats);
-        if (args?.searchText?.trim())
-          q = q.ilike("question_text", `%${args.searchText.trim()}%`);
+        let q = supabase.from("final_quiz_questions").select("*");
+        q = applyCommonFilters(q, args);
 
         const { data, error } = await q;
-        if (error) return { error: mapError(error) };
+        if (error) return { error: mapError(error) } as const;
 
         const rows = (data ?? []) as FinalQuizQuestion[];
-        return { data: { rows, total: rows.length } };
+        return { data: { rows, total: rows.length } } as const;
       },
       providesTags: (result) =>
         result

@@ -95,20 +95,41 @@ const normalizeWord = (s: string) =>
     .toLowerCase()
     .replace(/\(\s*\)$/, "");
 
+function coerceMultiline(s: string): string {
+  if (!s) return "";
+  let t = s;
+
+  if (
+    (t.startsWith('"') && t.endsWith('"')) ||
+    (t.startsWith("'") && t.endsWith("'"))
+  ) {
+    try {
+      if (t.startsWith('"') && t.endsWith('"')) return JSON.parse(t);
+    } catch {}
+    t = t.slice(1, -1);
+  }
+
+  if (!t.includes("\n") && /\\n/.test(t)) {
+    t = t.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
+  }
+  t = t.replace(/\\t/g, "\t");
+  return t;
+}
+
 function CodeBlock({ code }: { code: string }) {
   const raw = typeof code === "string" ? code : "";
-  const lines = raw.replace(/\r/g, "").split("\n");
+  const text = coerceMultiline(raw).replace(/\r/g, "");
+  const lines = text.split("\n");
   const digits = String(lines.length).length;
   const numbered = lines
     .map((ln, i) => `${String(i + 1).padStart(digits, " ")}. ${ln ?? ""}`)
     .join("\n");
   return (
-    <pre className="m-0 whitespace-pre rounded-lg bg-teal-700 p-3 font-mono text-sm italic leading-5 text-white overflow-x-auto">
+    <pre className="m-0 whitespace-pre rounded-lg bg-teal-700 p-3 font-mono text-sm leading-5 text-white overflow-x-auto">
       <code>{numbered}</code>
     </pre>
   );
 }
-
 export interface QuizPageProps {
   onNext: () => void;
   email: string;
@@ -173,12 +194,8 @@ export function QuizPage({ onNext, email }: QuizPageProps) {
   };
 
   const { data, isLoading, isError, error } = useGetFinalQuestionsQuery({
-    page: 1,
-    pageSize: 20,
     onlyActive: true,
     formats: ["fill-in-blank", "multiple-choice", "identify-error"],
-    sortBy: "question_id",
-    ascending: true,
   });
 
   const questions: Q[] = useMemo(() => {
