@@ -22,6 +22,7 @@ type RowResult = {
   points_earned: number | null;
   time_spent_seconds: number | null;
   cheat_sheet_accessed: boolean | null;
+  cheat_sheet_access: any | null;
   final_quiz_questions: {
     bloom_level: BloomLevel | null;
     points: number | null;
@@ -163,6 +164,7 @@ export function ResultsPage({
             points_earned,
             time_spent_seconds,
             cheat_sheet_accessed,
+            cheat_sheet_access,
             final_quiz_questions!inner (
               bloom_level,
               points
@@ -189,6 +191,7 @@ export function ResultsPage({
           points_earned: r.points_earned ?? null,
           time_spent_seconds: r.time_spent_seconds ?? null,
           cheat_sheet_accessed: r.cheat_sheet_accessed ?? null,
+          cheat_sheet_access: r.cheat_sheet_access ?? null,
           final_quiz_questions: Array.isArray(r.final_quiz_questions)
             ? r.final_quiz_questions[0] ?? null
             : r.final_quiz_questions ?? null,
@@ -216,8 +219,8 @@ export function ResultsPage({
       const total = rows.length;
       const correct = rows.filter((r) => r.is_correct).length;
       const finalPct = pct(correct, total);
-      const cheatAccesses = rows.filter((r) => !!r.cheat_sheet_accessed).length;
 
+      const cheatAccesses = rows.length ? rows[0]?.cheat_sheet_access ?? 0 : 0;
       const timeSpent = rows.length ? rows[0]?.time_spent_seconds ?? 0 : 0;
 
       const levels: BloomLevel[] = [

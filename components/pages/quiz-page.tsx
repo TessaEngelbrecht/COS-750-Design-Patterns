@@ -9,6 +9,14 @@ import Image from "next/image";
 import { Spinner } from "@/components/ui/spinner";
 import { useGetFinalQuestionsQuery } from "@/api/services/FinalQuiz";
 import { supabase } from "@/lib/supebase";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { CheatSheetContent } from "../cheat-sheet-content";
 
 type NormalizedOption = { id: string; text: string };
 
@@ -112,7 +120,9 @@ export function QuizPage({ onNext, email }: QuizPageProps) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedOnce, setSavedOnce] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [cheatOpen, setCheatOpen] = useState(false);
+  const [cheatAccessed, setCheatAccessed] = useState<boolean>(false);
+  const [cheatAccessCount, setCheatAccessCount] = useState<number>(0);
 
   const [mcAnswers, setMcAnswers] = useState<Record<number, string>>({});
   const [fibAnswers, setFibAnswers] = useState<Record<number, string>>({});
@@ -147,17 +157,8 @@ export function QuizPage({ onNext, email }: QuizPageProps) {
   }, []);
 
   useEffect(() => {
-    if (!locked) {
-      pageStartRef.current = Date.now();
-    }
+    if (!locked) pageStartRef.current = Date.now();
   }, [locked]);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 0);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   const [checking, setChecking] = useState(true);
   const [checkError, setCheckError] = useState<string | null>(null);
@@ -303,9 +304,10 @@ export function QuizPage({ onNext, email }: QuizPageProps) {
 
         const { data: resRows, error: resErr } = await supabase
           .from("final_quiz_results")
-          .select("question_id, student_answer, is_correct")
+          .select(
+            "question_id, student_answer, is_correct, cheat_sheet_accessed, cheat_sheet_access"
+          )
           .eq("student_id", userRow.id);
-
         if (resErr) throw resErr;
 
         if (!cancelled) {
@@ -317,6 +319,14 @@ export function QuizPage({ onNext, email }: QuizPageProps) {
           const mc: Record<number, string> = {};
           const fib: Record<number, string> = {};
           const graded: Record<number, Graded> = {};
+
+          const first = resRows[0];
+          if (first) {
+            const acc = Boolean(first.cheat_sheet_accessed);
+            const cnt = Number(first.cheat_sheet_access ?? 0);
+            setCheatAccessed(acc);
+            setCheatAccessCount(Number.isFinite(cnt) ? cnt : 0);
+          }
 
           const byId = new Map<number, Q>(questions.map((q) => [q.id, q]));
           for (const r of resRows) {
@@ -504,7 +514,8 @@ export function QuizPage({ onNext, email }: QuizPageProps) {
               is_correct,
               points_earned,
               time_spent_seconds,
-              cheat_sheet_accessed: false,
+              cheat_sheet_accessed: cheatAccessed,
+              cheat_sheet_access: cheatAccessCount,
             };
           } else {
             const typed = (fibAnswers[q.id] ?? "").trim();
@@ -521,7 +532,8 @@ export function QuizPage({ onNext, email }: QuizPageProps) {
               is_correct,
               points_earned,
               time_spent_seconds,
-              cheat_sheet_accessed: false,
+              cheat_sheet_accessed: cheatAccessed,
+              cheat_sheet_access: cheatAccessCount,
             };
           }
         });
@@ -625,7 +637,43 @@ export function QuizPage({ onNext, email }: QuizPageProps) {
     <div className="min-h-screen bg-white">
       <header className="sticky top-[72px] left-0 right-0 border-b border-slate-200 bg-white backdrop-blur">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 py-3">
-          <div className="flex items-center justify-end">
+          <div className="flex items-center justify-between">
+            <Dialog
+              open={cheatOpen}
+              onOpenChange={(next) => {
+                if (!cheatOpen && next) {
+                  setCheatAccessed(true);
+                  setCheatAccessCount((c) => c + 1);
+                }
+                setCheatOpen(next);
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="rounded-lg border border-teal-200 px-3 py-2 text-teal-700 hover:bg-teal-50"
+                >
+                  <img
+                    src="/icons/idea.svg"
+                    alt=""
+                    className="h-[24px] w-[24px]"
+                  />
+                </Button>
+              </DialogTrigger>
+
+              <DialogContent className="max-w-[92vw] lg:max-w-6xl h-[85vh] p-0 overflow-hidden">
+                <DialogHeader className="px-6 pt-4">
+                  <DialogTitle className="text-teal-700">
+                    Quick Reference
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="h-full">
+                  <CheatSheetContent onClose={() => setCheatOpen(false)} />
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Expand/Collapse All */}
             <button
               onClick={toggleAll}
               className="inline-flex items-center gap-2 rounded-lg border border-teal-200 px-3 py-2 text-teal-700 hover:bg-teal-50"

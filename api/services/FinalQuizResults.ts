@@ -17,6 +17,7 @@ type RowResult = {
   is_correct: boolean;
   time_spent_seconds: number | null;
   cheat_sheet_accessed: boolean | null;
+  cheat_sheet_access: number | null;
   final_quiz_questions: { bloom_level: BloomLevel | null } | null; // joined
 };
 
