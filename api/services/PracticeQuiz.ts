@@ -150,3 +150,38 @@ export async function savePracticeAnswer(params: SavePracticeAnswerParams) {
     throw err;
   }
 }
+export async function getPreQuizResultsForStudent(studentId: string) {
+  const { data, error } = await supabase
+    .from("pre_quiz_results")
+    .select("student_answer, question_id, answered_at")
+    .eq("student_id", studentId)
+    .in("question_id", [2, 3])
+    .order("answered_at", { ascending: false });
+
+  if (error) {
+    console.error("❌ Error fetching pre-quiz results:", error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getPracticeQuizResultsForStudent(
+  studentId: string,
+  questionIds: number[]
+) {
+  if (questionIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("practice_quiz_results")
+    .select("question_id, is_correct, points_earned")
+    .eq("student_id", studentId)
+    .in("question_id", questionIds);
+
+  if (error) {
+    console.error("❌ Error fetching practice quiz results:", error);
+    throw error;
+  }
+
+  return data || [];
+}

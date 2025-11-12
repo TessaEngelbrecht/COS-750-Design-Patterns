@@ -1,4 +1,9 @@
-import { supabase } from "@/lib/supebase";
+import {
+  getPracticeQuestions,
+  getPreQuizResultsForStudent,
+  getPracticeQuizResultsForStudent,
+  type PracticeQuestion,
+} from "@/api/services/PracticeQuiz";
 
 const PRACTICE_SECTIONS = [
   "Theory & Concepts",
@@ -14,19 +19,6 @@ type BloomLevel =
   | "Analyze"
   | "Evaluate"
   | "Create";
-
-export interface PracticeQuestion {
-  question_id: number;
-  section: string;
-  bloom_level: BloomLevel;
-  difficulty_level: "Easy" | "Medium" | "Hard";
-  question_format: string;
-  question_text: string;
-  question_data: any;
-  correct_answer: any;
-  points: number;
-  is_active: boolean;
-}
 
 interface PreQuizInfo {
   experience: "advanced" | "intermediate" | "beginner" | "novice";
@@ -51,50 +43,19 @@ export async function generatePracticeQuizEngine({
   excludeQuestionIds = [],
   usePreviousResults,
 }: PracticeQuizEngineParams): Promise<PracticeQuestion[]> {
-  console.log("\n🎯 [Quiz Engine] Starting quiz generation...");
-  console.log(`Student ID: ${studentId}`);
-  console.log(`Retake mode: ${usePreviousResults ? "YES" : "NO"}`);
-  console.log(`Excluding ${excludeQuestionIds.length} previous questions`);
-
   // 1. Get pre-quiz info
   const { experience, strugglingSections } = await getPreQuizInfo(studentId);
-  console.log(`📊 Experience level: ${experience}`);
-  console.log(
-    `📊 Struggling sections: ${
-      strugglingSections.join(", ") || "None specified"
-    }`
-  );
 
   // 2. Analyze past performance if retake
   const pastPerformance = usePreviousResults
     ? await getPastPracticePerformance(studentId, excludeQuestionIds)
     : null;
 
-  if (pastPerformance) {
-    console.log("\n📈 Past Performance Analysis:");
-    console.log(`   Overall Score: ${pastPerformance.overallScore}%`);
-    console.log(
-      `   Weak Sections: ${pastPerformance.weakSections.join(", ") || "None"}`
-    );
-    console.log(
-      `   Weak Bloom Levels: ${
-        pastPerformance.weakBloomLevels.join(", ") || "None"
-      }`
-    );
-    console.log(
-      `   Weak Difficulties: ${
-        pastPerformance.weakDifficulties.join(", ") || "None"
-      }`
-    );
-  }
-
   // 3. Fetch all active questions (exclude specified)
   let questions = await fetchAllActivePracticeQuestions(excludeQuestionIds);
-  console.log(`\n📚 Available question pool: ${questions.length} questions`);
 
   // 4. Select one from each section (guaranteed)
   let guaranteed: PracticeQuestion[] = [];
-  console.log("\n✅ Guaranteeing coverage of all sections:");
 
   for (const section of PRACTICE_SECTIONS) {
     let filtered = questions.filter((q) => q.section === section);
@@ -102,7 +63,7 @@ export async function generatePracticeQuizEngine({
     // If retake, prioritize weak bloom levels for this section
     if (pastPerformance && pastPerformance.weakBloomLevels.length > 0) {
       const weakFiltered = filtered.filter((q) =>
-        pastPerformance.weakBloomLevels.includes(q.bloom_level)
+        pastPerformance.weakBloomLevels.includes(q.bloom_level as BloomLevel)
       );
       if (weakFiltered.length > 0) {
         filtered = weakFiltered;
@@ -113,16 +74,13 @@ export async function generatePracticeQuizEngine({
       const toAdd = randomOne(filtered);
       guaranteed.push(toAdd);
       questions = questions.filter((q) => q.question_id !== toAdd.question_id);
-      console.log(
-        `   ✓ ${section}: Question ${toAdd.question_id} (${toAdd.bloom_level}, ${toAdd.difficulty_level})`
-      );
     }
   }
 
   // 5. Select code implementation extra if inexperienced
   let codeImplCount =
     experience === "novice" || experience === "beginner"
-      ? 6 // Changed from 8 to 6
+      ? 6
       : experience === "intermediate"
       ? 4
       : 2;
@@ -132,27 +90,19 @@ export async function generatePracticeQuizEngine({
   ).length;
   let codeImplNeeded = Math.max(0, codeImplCount - alreadyCodeImpl);
 
-  console.log(
-    `\n💻 Code Implementation allocation: ${codeImplCount} total (${alreadyCodeImpl} already guaranteed, ${codeImplNeeded} more needed)`
-  );
-
   const codeImplPool = questions.filter(
     (q) => q.section === "Code Implementation"
   );
   const codeImplExtra = chooseRandom(codeImplPool, codeImplNeeded);
   codeImplExtra.forEach((q) => {
     questions = questions.filter((q2) => q2.question_id !== q.question_id);
-    console.log(`   ✓ Added Code Implementation: Question ${q.question_id}`);
   });
 
   // 6. Fill with struggling sections
   const remainingToPick = 15 - guaranteed.length - codeImplExtra.length;
   let strugglingRest: PracticeQuestion[] = [];
 
-  console.log(`\n🎯 Filling ${remainingToPick} remaining slots...`);
-
   if (remainingToPick > 0) {
-    // Combine pre-quiz struggling sections with past performance weak sections
     const targetSections =
       usePreviousResults && pastPerformance
         ? [...new Set([...strugglingSections, ...pastPerformance.weakSections])]
@@ -161,10 +111,9 @@ export async function generatePracticeQuizEngine({
     if (targetSections.length > 0) {
       let pool = questions.filter((q) => targetSections.includes(q.section));
 
-      // Further filter by weak bloom levels if available
       if (pastPerformance && pastPerformance.weakBloomLevels.length > 0) {
         const bloomFiltered = pool.filter((q) =>
-          pastPerformance.weakBloomLevels.includes(q.bloom_level)
+          pastPerformance.weakBloomLevels.includes(q.bloom_level as BloomLevel)
         );
         if (bloomFiltered.length > 0) {
           pool = bloomFiltered;
@@ -175,9 +124,6 @@ export async function generatePracticeQuizEngine({
       strugglingRest.forEach((q) => {
         questions = questions.filter((q2) => q2.question_id !== q.question_id);
       });
-      console.log(
-        `   ✓ Added ${strugglingRest.length} from struggling sections`
-      );
     }
   }
 
@@ -187,14 +133,12 @@ export async function generatePracticeQuizEngine({
   const numNeeded = 15 - currentQuestions.length;
 
   if (numNeeded > 0) {
-    console.log(`   ✓ Filling ${numNeeded} more with diverse questions`);
     let pool = questions;
 
-    // If retake, prioritize weak areas
     if (pastPerformance) {
       if (pastPerformance.weakBloomLevels.length > 0) {
         const bloomPool = pool.filter((q) =>
-          pastPerformance.weakBloomLevels.includes(q.bloom_level)
+          pastPerformance.weakBloomLevels.includes(q.bloom_level as BloomLevel)
         );
         if (bloomPool.length >= numNeeded) {
           pool = bloomPool;
@@ -222,43 +166,30 @@ export async function generatePracticeQuizEngine({
 // ==== Helper Functions ====
 
 async function getPreQuizInfo(studentId: string): Promise<PreQuizInfo> {
-  // Get background experience (Q2)
-  const expResult = await supabase
-    .from("pre_quiz_results")
-    .select("student_answer, answered_at")
-    .eq("student_id", studentId)
-    .eq("question_id", 2)
-    .order("answered_at", { ascending: false })
-    .limit(1)
-    .single();
+  // Call service function instead of direct DB call
+  const preQuizResults = await getPreQuizResultsForStudent(studentId);
 
-  const expVal = expResult.data?.student_answer?.answer || "D";
+  // Find question 2 (experience) and question 3 (struggling sections)
+  const q2Result = preQuizResults.find((r) => r.question_id === 2);
+  const q3Result = preQuizResults.find((r) => r.question_id === 3);
 
-  const experienceMap: any = {
+  const expVal = q2Result?.student_answer?.answer || "D";
+
+  const experienceMap: Record<string, PreQuizInfo["experience"]> = {
     A: "advanced",
     B: "intermediate",
     C: "beginner",
     D: "novice",
   };
 
-  // Get struggling sections (Q3)
-  const secResult = await supabase
-    .from("pre_quiz_results")
-    .select("student_answer, answered_at")
-    .eq("student_id", studentId)
-    .eq("question_id", 3)
-    .order("answered_at", { ascending: false })
-    .limit(1)
-    .single();
-
-  const sectionMap: any = {
+  const sectionMap: Record<string, string> = {
     A: "Theory & Concepts",
     B: "UML Diagrams",
     C: "Code Implementation",
     D: "Pattern Participants/Relationships",
   };
 
-  const selectedIds = secResult.data?.student_answer?.answers || [];
+  const selectedIds = q3Result?.student_answer?.answers || [];
   const strugglingSections = selectedIds.map((id: string) => sectionMap[id]);
 
   return {
@@ -270,32 +201,26 @@ async function getPreQuizInfo(studentId: string): Promise<PreQuizInfo> {
 async function fetchAllActivePracticeQuestions(
   excludeIds: number[]
 ): Promise<PracticeQuestion[]> {
-  let query = supabase
-    .from("practice_quiz_questions")
-    .select("*")
-    .eq("is_active", true);
+  // Use service function to fetch all questions
+  const result = await getPracticeQuestions({
+    onlyActive: true,
+    limit: 1000, // Get all active questions
+  });
 
+  // Filter out excluded IDs on client side
+  let questions = result.rows;
   if (excludeIds.length > 0) {
-    query = query.not("question_id", "in", `(${excludeIds.join(",")})`);
+    questions = questions.filter((q) => !excludeIds.includes(q.question_id));
   }
 
-  const { data, error } = await query;
-  if (error) throw error;
-  return data as PracticeQuestion[];
+  return questions;
 }
 
 async function getPastPracticePerformance(
   studentId: string,
   prevQuizIds: number[]
 ): Promise<PastPerformance> {
-  // Fetch the last quiz results
-  const { data: results, error } = await supabase
-    .from("practice_quiz_results")
-    .select("question_id, is_correct, points_earned")
-    .eq("student_id", studentId)
-    .in("question_id", prevQuizIds);
-
-  if (error || !results || results.length === 0) {
+  if (prevQuizIds.length === 0) {
     return {
       weakSections: [],
       weakBloomLevels: [],
@@ -304,14 +229,33 @@ async function getPastPracticePerformance(
     };
   }
 
-  // Fetch question details for analysis
-  const questionIds = results.map((r) => r.question_id);
-  const { data: questions } = await supabase
-    .from("practice_quiz_questions")
-    .select("question_id, section, bloom_level, difficulty_level")
-    .in("question_id", questionIds);
+  // Call service function to get past results
+  const results = await getPracticeQuizResultsForStudent(
+    studentId,
+    prevQuizIds
+  );
 
-  if (!questions) {
+  if (!results || results.length === 0) {
+    return {
+      weakSections: [],
+      weakBloomLevels: [],
+      weakDifficulties: [],
+      overallScore: 0,
+    };
+  }
+
+  // Fetch question details for the answered questions
+  const questionIds = results.map((r) => r.question_id);
+  const questionsResult = await getPracticeQuestions({
+    onlyActive: true,
+    limit: 1000,
+  });
+
+  const questions = questionsResult.rows.filter((q) =>
+    questionIds.includes(q.question_id)
+  );
+
+  if (!questions.length) {
     return {
       weakSections: [],
       weakBloomLevels: [],
