@@ -1,11 +1,11 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supebase"
+import type React from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supebase";
 interface SignupPageProps {
-  onSwitchToLogin: () => void
+  onSwitchToLogin: () => void;
 }
 
 export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
@@ -15,75 +15,78 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
     email: "",
     password: "",
     confirmPassword: "",
-  })
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
-    })
-  }
+    });
+  };
 
   // Sign up function with Supabase
   const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match")
-      return
+      alert("Passwords do not match");
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     //  User creation in Supabase Auth
     const { data, error } = await supabase.auth.signUp({
       email: formData.email,
-      password: formData.password
-    })
+      password: formData.password,
+    });
 
     if (error) {
-      alert(`Sign up error: ${error.message}`)
-      setLoading(false)
-      return
+      alert(`Sign up error: ${error.message}`);
+      setLoading(false);
+      return;
     }
 
     // User insertion in the user table
     if (data?.user) {
-      const { error: dbError } = await supabase
-        .from("users")
-        .insert([{
+      const { error: dbError } = await supabase.from("users").insert([
+        {
           id: data.user.id,
           email: formData.email,
           first_name: formData.first_name,
           last_name: formData.last_name,
           role: "student",
-          has_seen_self_reflection: false
-        }])
+          has_seen_self_reflection: false,
+        },
+      ]);
 
       if (dbError) {
-        alert(`Database error: ${dbError.message}`)
-        setLoading(false)
-        return
+        alert(`Database error: ${dbError.message}`);
+        setLoading(false);
+        return;
       }
 
-      localStorage.setItem("user", JSON.stringify({
-        id: data.user.id,
-        email: formData.email,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        role: "student",
-      }))
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: data.user.id,
+          email: formData.email,
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          role: "student",
+        })
+      );
 
-      setLoading(false)
-      router.push("/student")
+      setLoading(false);
+      router.push("/student");
     } else {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="flex min-h-screen flex-col-reverse md:flex-row">
@@ -102,11 +105,13 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
         <p className="text-gray-600 text-center mb-4">Software Modeling</p>
         <div className="space-y-4">
           <p className="text-gray-700 font-medium">
-            In the following app you as a student will be able to see where you are currently at with your knowledge on
-            the design pattern <strong>OBSERVER</strong>.
+            In the following app you as a student will be able to see where you
+            are currently at with your knowledge on the design pattern{" "}
+            <strong>OBSERVER</strong>.
           </p>
           <p className="text-gray-700 font-medium">
-            You will be able to test yourself with practice quizzes before taking the final exam assessment.
+            You will be able to test yourself with practice quizzes before
+            taking the final exam assessment.
           </p>
         </div>
       </div>
@@ -117,7 +122,10 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
           <h1 className="text-white text-3xl font-bold mb-8">Sign Up</h1>
 
           <div className="mb-4">
-            <label htmlFor="first_name" className="block text-white font-semibold mb-2">
+            <label
+              htmlFor="first_name"
+              className="block text-white font-semibold mb-2"
+            >
               First Name
             </label>
             <input
@@ -131,7 +139,10 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
             />
           </div>
           <div className="mb-4">
-            <label htmlFor="last_name" className="block text-white font-semibold mb-2">
+            <label
+              htmlFor="last_name"
+              className="block text-white font-semibold mb-2"
+            >
               Last Name
             </label>
             <input
@@ -146,7 +157,10 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
           </div>
 
           <div className="mb-4">
-            <label htmlFor="email" className="block text-white font-semibold mb-2">
+            <label
+              htmlFor="email"
+              className="block text-white font-semibold mb-2"
+            >
               Email Address
             </label>
             <div className="relative">
@@ -176,7 +190,10 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
           </div>
 
           <div className="mb-4">
-            <label htmlFor="password" className="block text-white font-semibold mb-2">
+            <label
+              htmlFor="password"
+              className="block text-white font-semibold mb-2"
+            >
               Password
             </label>
             <div className="relative">
@@ -195,7 +212,11 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
                 className="absolute right-3 top-3 text-teal-600"
               >
                 {showPassword ? (
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
                     <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                     <path
                       fillRule="evenodd"
@@ -204,7 +225,11 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
                     />
                   </svg>
                 ) : (
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
                     <path
                       fillRule="evenodd"
                       d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
@@ -218,7 +243,10 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
           </div>
 
           <div className="mb-6">
-            <label htmlFor="confirmPassword" className="block text-white font-semibold mb-2">
+            <label
+              htmlFor="confirmPassword"
+              className="block text-white font-semibold mb-2"
+            >
               Confirm Password
             </label>
             <div className="relative">
@@ -237,7 +265,11 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
                 className="absolute right-3 top-3 text-teal-600"
               >
                 {showConfirmPassword ? (
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
                     <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                     <path
                       fillRule="evenodd"
@@ -246,7 +278,11 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
                     />
                   </svg>
                 ) : (
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
                     <path
                       fillRule="evenodd"
                       d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
@@ -279,5 +315,5 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }
