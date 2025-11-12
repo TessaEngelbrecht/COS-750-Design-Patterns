@@ -33,7 +33,7 @@ function ScreenSizeChecker({ children }: { children: ReactNode }) {
             Desktop or Tablet Required
           </h2>
           <p className="text-gray-600 mb-6">
-            The UML Builder requires a larger screen for the best experience. 
+            A larger screen is required for the best experience. 
             Please switch to:
           </p>
           <div className="space-y-3 text-left bg-blue-50 p-4 rounded-lg mb-6">
@@ -56,9 +56,9 @@ function ScreenSizeChecker({ children }: { children: ReactNode }) {
               </div>
             </div>
           </div>
-          <p className="text-sm text-gray-500 italic">
+          {/* <p className="text-sm text-gray-500 italic">
             Current screen is too small for the interactive UML diagram editor
-          </p>
+          </p> */}
         </Card>
       </div>
     )
