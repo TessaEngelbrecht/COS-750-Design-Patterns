@@ -349,13 +349,13 @@ function logQuizSelection(
     diffCounts[q.difficulty_level] = (diffCounts[q.difficulty_level] || 0) + 1;
   });
 
-  console.log(`\n📊 [Quiz Engine] Final Quiz Distribution for ${studentId}`);
-  console.log(`Mode: ${isRetake ? "RETAKE (Adaptive)" : "FIRST ATTEMPT"}`);
-  console.log("\n📚 By Section:");
-  console.table(sectionCounts);
-  console.log("\n🎓 By Bloom Level:");
-  console.table(bloomCounts);
-  console.log("\n⚡ By Difficulty:");
-  console.table(diffCounts);
-  console.log("\n✅ Quiz generation complete!\n");
+//   console.log(`\n📊 [Quiz Engine] Final Quiz Distribution for ${studentId}`);
+//   console.log(`Mode: ${isRetake ? "RETAKE (Adaptive)" : "FIRST ATTEMPT"}`);
+//   console.log("\n📚 By Section:");
+//   console.table(sectionCounts);
+//   console.log("\n🎓 By Bloom Level:");
+//   console.table(bloomCounts);
+//   console.log("\n⚡ By Difficulty:");
+//   console.table(diffCounts);
+//   console.log("\n✅ Quiz generation complete!\n");
 }

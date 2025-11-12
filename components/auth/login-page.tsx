@@ -63,7 +63,7 @@ export default function LoginPage({ onSwitchToSignup, onSwitchToForgotPassword }
     )
 
     // Redirect logic
-    console.log("User profile:", profile)
+    //console.log("User profile:", profile)
     if (profile.role === "student") {
       switchOnTo("/student", router)
     } 

@@ -43,13 +43,13 @@ export function PracticePage({ onNext }: PracticePageProps) {
       const studentId = getCurrentUserId()
       if (!studentId) throw new Error("No user found. Please sign in.")
 
-      console.log("📚 Generating practice quiz with engine...")
+      //console.log("📚 Generating practice quiz with engine...")
       const quizQuestions = await generatePracticeQuizEngine({
         studentId,
         excludeQuestionIds: excludeIds,
         usePreviousResults: isRetake,
       })
-      console.log(`✅ Engine returned ${quizQuestions.length} questions`)
+      //console.log(`✅ Engine returned ${quizQuestions.length} questions`)
       setQuestions(quizQuestions)
     } catch (err: any) {
       console.error("❌ Error loading questions:", err)
