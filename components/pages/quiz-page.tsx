@@ -17,8 +17,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import CheatSheetContent from "../cheat-sheet-content";
+import type { ListResult } from "@/api/services/FinalQuiz";
+
+/* ============================== Types ============================== */
 
 type NormalizedOption = { id: string; text: string };
+type QId = string; // UUID from DB
 
 type MCQuestionData = { options?: unknown };
 type IdentifyErrorData = {
@@ -37,7 +41,7 @@ type Graded =
 
 type Q =
   | {
-      id: number;
+      id: QId;
       kind: "fill-in-blank";
       stem: string;
       blank: string;
@@ -45,7 +49,7 @@ type Q =
       points: number | null;
     }
   | {
-      id: number;
+      id: QId;
       kind: "multiple-choice";
       stem: string;
       options: NormalizedOption[];
@@ -54,18 +58,20 @@ type Q =
       points: number | null;
     }
   | {
-      id: number;
+      id: QId;
       kind: "code-fix";
       stem: string;
       code: string;
       points: number | null;
     }
   | {
-      id: number;
+      id: QId;
       kind: "unsupported";
       stem: string;
       points: number | null;
     };
+
+/* ============================== Utils ============================== */
 
 const toStringSafe = (v: unknown): string => {
   if (typeof v === "string") return v;
@@ -130,34 +136,45 @@ function CodeBlock({ code }: { code: string }) {
     </pre>
   );
 }
+
 export interface QuizPageProps {
   onNext: () => void;
-  user: string;
+  user: string; // JSON string with { email }
 }
+
+/* ============================== Component ============================== */
 
 export function QuizPage({ onNext, user }: QuizPageProps) {
   const email = JSON.parse(user ?? "{}")?.email as string | undefined;
-  const [expandedIds, setExpandedIds] = useState<number[]>([]);
+
+  const [expandedIds, setExpandedIds] = useState<QId[]>([]);
   const [locked, setLocked] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedOnce, setSavedOnce] = useState(false);
   const [cheatOpen, setCheatOpen] = useState(false);
+
+  // we still track these for UI; server logs each open in its own table
   const [cheatAccessed, setCheatAccessed] = useState<boolean>(false);
   const [cheatAccessCount, setCheatAccessCount] = useState<number>(0);
 
-  const [mcAnswers, setMcAnswers] = useState<Record<number, string>>({});
-  const [fibAnswers, setFibAnswers] = useState<Record<number, string>>({});
-  const [results, setResults] = useState<Record<number, Graded>>({});
+  const [mcAnswers, setMcAnswers] = useState<Record<QId, string>>({});
+  const [fibAnswers, setFibAnswers] = useState<Record<QId, string>>({});
+  const [results, setResults] = useState<Record<QId, Graded>>({});
 
-  const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const itemRefs = useRef<Record<QId, HTMLDivElement | null>>({});
 
   const pageStartRef = useRef<number>(Date.now());
-  const perQuestionSecondsRef = useRef<Record<number, number>>({});
-  const activeTimerRef = useRef<{ qid: number | null; start: number | null }>({
+  const perQuestionSecondsRef = useRef<Record<QId, number>>({});
+  const activeTimerRef = useRef<{ qid: QId | null; start: number | null }>({
     qid: null,
     start: null,
   });
+
+  // keep the current attempt id
+  const [attemptId, setAttemptId] = useState<string | null>(null);
+
+  /* ========= timing ========= */
 
   const stopActiveTimer = () => {
     const { qid, start } = activeTimerRef.current;
@@ -169,7 +186,7 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
     activeTimerRef.current = { qid: null, start: null };
   };
 
-  const startTimerFor = (qid: number) => {
+  const startTimerFor = (qid: QId) => {
     stopActiveTimer();
     activeTimerRef.current = { qid, start: Date.now() };
   };
@@ -182,8 +199,9 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
     if (!locked) pageStartRef.current = Date.now();
   }, [locked]);
 
+  /* ========= data ========= */
+
   const [checking, setChecking] = useState(true);
-  const [checkError, setCheckError] = useState<string | null>(null);
 
   const getActiveEmail = (): string | null => {
     if (email?.trim()) return email.trim();
@@ -197,10 +215,17 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
   const { data, isLoading, isError, error } = useGetFinalQuestionsQuery({
     onlyActive: true,
     formats: ["fill-in-blank", "multiple-choice", "identify-error"],
+    quizType: "Final Quiz",
   });
 
   const questions: Q[] = useMemo(() => {
-    const rows = data?.rows ?? [];
+    const rows = ((): any[] => {
+      if (data && typeof data === "object" && "rows" in data) {
+        return (data as ListResult).rows ?? [];
+      }
+      return [];
+    })();
+
     return rows.map((q: any) => {
       const fmt: string = q.question_format;
       const qd = (q.question_data ?? {}) as unknown;
@@ -212,7 +237,7 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
           (q.correct_answer?.blanks?.[0]?.answers as string[] | undefined) ??
           [];
         return {
-          id: q.question_id,
+          id: String(q.question_id ?? q.question_id ?? q.id),
           kind: "fill-in-blank" as const,
           stem: toStringSafe(q.question_text),
           blank: jd?.blank ?? "_______",
@@ -228,7 +253,7 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
         );
         const correct = String(q.correct_answer?.answer ?? "");
         return {
-          id: q.question_id,
+          id: String(q.question_id ?? q.question_id ?? q.id),
           kind: "multiple-choice" as const,
           stem: toStringSafe(q.question_text),
           options,
@@ -250,7 +275,7 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
         if (options.length > 0) {
           const correct = String(q.correct_answer?.answer ?? "");
           return {
-            id: q.question_id,
+            id: String(q.question_id ?? q.question_id ?? q.id),
             kind: "multiple-choice" as const,
             stem: toStringSafe(q.question_text),
             options,
@@ -266,7 +291,7 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
           };
         }
         return {
-          id: q.question_id,
+          id: String(q.question_id ?? q.question_id ?? q.id),
           kind: "code-fix" as const,
           stem: toStringSafe(q.question_text),
           code: String(
@@ -281,7 +306,7 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
       }
 
       return {
-        id: q.question_id,
+        id: String(q.question_id ?? q.question_id ?? q.id),
         kind: "unsupported" as const,
         stem: toStringSafe(q.question_text),
         points,
@@ -297,110 +322,81 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
     setExpandedIds(allExpanded ? [] : questions.map((q) => q.id));
   };
 
-  useEffect(() => {
-    let cancelled = false;
+  /* ========= attempt helpers ========= */
 
+  async function getOrCreateAttempt(student_id: string) {
+    const { data: existing, error: findErr } = await supabase
+      .from("quiz_attempt")
+      .select("id, submitted_at")
+      .eq("student_id", student_id)
+      .is("submitted_at", null)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (findErr) throw findErr;
+    if (existing?.id) return existing.id as string;
+
+    const { data: created, error: createErr } = await supabase
+      .from("quiz_attempt")
+      .insert({ student_id })
+      .select("id")
+      .single();
+    if (createErr) throw createErr;
+    return created!.id as string;
+  }
+
+  async function getOrCreateAttemptItem(
+    quiz_attempt_id: string,
+    question_id: string
+  ) {
+    const { data: found, error: findErr } = await supabase
+      .from("quiz_attempt_item")
+      .select("id")
+      .eq("quiz_attempt_id", quiz_attempt_id)
+      .eq("question_id", question_id)
+      .maybeSingle();
+    if (findErr) throw findErr;
+    if (found?.id) return found.id as string;
+
+    const { data: ins, error: insErr } = await supabase
+      .from("quiz_attempt_item")
+      .insert({ quiz_attempt_id, question_id })
+      .select("id")
+      .single();
+    if (insErr) throw insErr;
+    return ins.id as string;
+  }
+
+  // Prepare an attempt once we know the student
+  useEffect(() => {
     (async () => {
       try {
         const activeEmail = getActiveEmail();
-        if (!activeEmail || !questions.length) {
-          setChecking(false);
-          return;
-        }
+        if (!activeEmail) return;
 
         const { data: userRow, error: userErr } = await supabase
           .from("users")
           .select("id")
           .eq("email", activeEmail)
           .maybeSingle();
-        if (userErr) throw userErr;
+        if (userErr || !userRow?.id) return;
 
-        if (!userRow?.id) {
-          if (!cancelled) setChecking(false);
-          return;
-        }
-
-        const { data: resRows, error: resErr } = await supabase
-          .from("final_quiz_results")
-          .select(
-            "question_id, student_answer, is_correct, cheat_sheet_accessed, cheat_sheet_access"
-          )
-          .eq("student_id", userRow.id);
-        if (resErr) throw resErr;
-
-        if (!cancelled) {
-          if (!resRows?.length) {
-            setChecking(false);
-            return;
-          }
-
-          const mc: Record<number, string> = {};
-          const fib: Record<number, string> = {};
-          const graded: Record<number, Graded> = {};
-
-          const first = resRows[0];
-          if (first) {
-            const acc = Boolean(first.cheat_sheet_accessed);
-            const cnt = Number(first.cheat_sheet_access ?? 0);
-            setCheatAccessed(acc);
-            setCheatAccessCount(Number.isFinite(cnt) ? cnt : 0);
-          }
-
-          const byId = new Map<number, Q>(questions.map((q) => [q.id, q]));
-          for (const r of resRows) {
-            const q = byId.get(r.question_id);
-            if (!q) continue;
-            const ans = (r.student_answer as any)?.answer ?? "";
-
-            if (q.kind === "multiple-choice") {
-              const picked = String(ans);
-              mc[q.id] = picked;
-              graded[q.id] = r.is_correct
-                ? { state: "correct" }
-                : { state: "incorrect", got: picked };
-            } else if (q.kind === "fill-in-blank") {
-              const typed = String(ans);
-              fib[q.id] = typed;
-              graded[q.id] = r.is_correct
-                ? { state: "correct" }
-                : { state: "incorrect", got: typed };
-            } else {
-              graded[q.id] = { state: "ungraded" };
-            }
-          }
-
-          setMcAnswers(mc);
-          setFibAnswers(fib);
-          setResults(graded);
-          setLocked(true);
-          setSavedOnce(true);
-          setChecking(false);
-        }
-      } catch (e: any) {
-        if (!cancelled) {
-          setCheckError(e?.message || String(e));
-          setChecking(false);
-        }
+        const attempt = await getOrCreateAttempt(userRow.id as string);
+        setAttemptId(attempt);
+      } catch (e) {
+        console.warn("init attempt failed", e);
+      } finally {
+        setChecking(false);
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [questions, email]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email, questions.length]);
 
   if (checking) {
     return (
       <div className="min-h-screen grid place-items-center">
         <Spinner />
         <div className="mt-2 text-slate-600">Checking your quiz status…</div>
-      </div>
-    );
-  }
-  if (checkError) {
-    return (
-      <div className="min-h-screen grid place-items-center p-6 text-red-600">
-        Couldn’t verify: {checkError}
       </div>
     );
   }
@@ -421,7 +417,9 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
   }
   if (!questions.length) return <div className="p-6">No questions found.</div>;
 
-  const toggle = (id: number) => {
+  /* ========= interaction ========= */
+
+  const toggle = (id: QId) => {
     setExpandedIds((s) => {
       const isOpen = s.includes(id);
       if (isOpen) {
@@ -441,12 +439,12 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
     return true;
   };
 
-  const firstUnansweredId = (): number | null => {
+  const firstUnansweredId = (): QId | null => {
     for (const q of questions) if (!isAnswered(q)) return q.id;
     return null;
   };
 
-  const scrollToQuestion = (id: number) => {
+  const scrollToQuestion = (id: QId) => {
     setExpandedIds((s) => (s.includes(id) ? s : [...s, id]));
     startTimerFor(id);
     const el = itemRefs.current[id];
@@ -454,7 +452,7 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
   };
 
   const gradeAll = () => {
-    const next: Record<number, Graded> = {};
+    const next: Record<QId, Graded> = {};
     for (const q of questions) {
       if (q.kind === "multiple-choice") {
         const picked = mcAnswers[q.id];
@@ -492,9 +490,12 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
     return Math.max(perQ, pageTotal);
   };
 
+  /* ========= SAVE (new schema) ========= */
+
   async function saveResults(
     activeEmail: string | null,
-    elapsedSeconds?: number
+    _elapsedSeconds?: number,
+    markSubmitted: boolean = true
   ) {
     setSaveError(null);
     setSaving(true);
@@ -502,6 +503,7 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
       const emailTrim = activeEmail?.trim();
       if (!emailTrim) throw new Error("Missing email when saving results.");
 
+      // resolve student
       const { data: userRow, error: userErr } = await supabase
         .from("users")
         .select("id")
@@ -511,84 +513,78 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
       if (!userRow?.id) throw new Error("User not found for provided email.");
       const student_id = userRow.id as string;
 
-      const time_spent_seconds =
-        typeof elapsedSeconds === "number"
-          ? elapsedSeconds
-          : getElapsedSeconds();
-
-      const rowsToInsert = questions
-        .filter(
-          (q) => q.kind === "multiple-choice" || q.kind === "fill-in-blank"
-        )
-        .map((q) => {
-          if (q.kind === "multiple-choice") {
-            const picked = mcAnswers[q.id] ?? null;
-            const is_correct = picked ? picked === q.correct : false;
-            const points_earned = is_correct ? q.points ?? 0 : 0;
-            return {
-              student_id,
-              question_id: q.id,
-              student_answer: { answer: picked },
-              is_correct,
-              points_earned,
-              time_spent_seconds,
-              cheat_sheet_accessed: cheatAccessed,
-              cheat_sheet_access: cheatAccessCount,
-            };
-          } else {
-            const typed = (fibAnswers[q.id] ?? "").trim();
-            const is_correct = typed
-              ? (q.acceptable ?? []).some(
-                  (a) => normalizeWord(a) === normalizeWord(typed)
-                )
-              : false;
-            const points_earned = is_correct ? q.points ?? 0 : 0;
-            return {
-              student_id,
-              question_id: q.id,
-              student_answer: { answer: typed },
-              is_correct,
-              points_earned,
-              time_spent_seconds,
-              cheat_sheet_accessed: cheatAccessed,
-              cheat_sheet_access: cheatAccessCount,
-            };
-          }
-        });
-
-      if (!rowsToInsert.length) {
-        setSavedOnce(true);
-        return true;
+      // ensure attempt
+      let aId = attemptId;
+      if (!aId) {
+        aId = await getOrCreateAttempt(student_id);
+        setAttemptId(aId);
       }
 
-      const up = await supabase
-        .from("final_quiz_results")
-        .upsert(rowsToInsert, { onConflict: "student_id,question_id" });
+      // create/update attempt items + results
+      const jobs: Promise<any>[] = [];
 
-      if (!up.error) {
-        setSavedOnce(true);
-        return true;
+      for (const q of questions) {
+        if (q.kind === "multiple-choice") {
+          const picked = mcAnswers[q.id] ?? null;
+          const is_correct = picked ? picked === q.correct : false;
+          const points_earned = is_correct ? q.points ?? 0 : 0;
+          const question_id = String(q.id);
+
+          jobs.push(
+            (async () => {
+              const itemId = await getOrCreateAttemptItem(aId!, question_id);
+              const { error: resErr } = await supabase
+                .from("quiz_attempt_item_result")
+                .upsert({
+                  quiz_attempt_item_id: itemId,
+                  is_correct,
+                  points_earned,
+                });
+              if (resErr) throw resErr;
+            })()
+          );
+        } else if (q.kind === "fill-in-blank") {
+          const typed = (fibAnswers[q.id] ?? "").trim();
+          const ok =
+            !!typed &&
+            (q.acceptable ?? []).some(
+              (a: string) => normalizeWord(a) === normalizeWord(typed)
+            );
+          const is_correct = ok;
+          const points_earned = is_correct ? q.points ?? 0 : 0;
+          const question_id = String(q.id);
+
+          jobs.push(
+            (async () => {
+              const itemId = await getOrCreateAttemptItem(aId!, question_id);
+              const { error: resErr } = await supabase
+                .from("quiz_attempt_item_result")
+                .upsert({
+                  quiz_attempt_item_id: itemId,
+                  is_correct,
+                  points_earned,
+                });
+              if (resErr) throw resErr;
+            })()
+          );
+        } else {
+          // code-fix / unsupported -> not scored here
+        }
       }
 
-      if (up.error.code === "42P10") {
-        const qids = rowsToInsert.map((r) => r.question_id);
-        const { error: delErr } = await supabase
-          .from("final_quiz_results")
-          .delete()
-          .eq("student_id", student_id)
-          .in("question_id", qids);
-        if (delErr) throw delErr;
+      await Promise.all(jobs);
 
-        const { error: insErr } = await supabase
-          .from("final_quiz_results")
-          .insert(rowsToInsert);
-        if (insErr) throw insErr;
-
-        setSavedOnce(true);
-        return true;
+      // finalize attempt
+      if (markSubmitted) {
+        const { error: subErr } = await supabase
+          .from("quiz_attempt")
+          .update({ submitted_at: new Date().toISOString() })
+          .eq("id", aId!);
+        if (subErr) throw subErr;
       }
 
-      throw up.error;
+      setSavedOnce(true);
+      return true;
     } catch (e: any) {
       console.error("saveResults error:", e);
       setSaveError(e?.message || String(e));
@@ -603,7 +599,7 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
 
     if (locked) {
       if (!savedOnce) {
-        const ok = await saveResults(activeEmail, getElapsedSeconds());
+        const ok = await saveResults(activeEmail, getElapsedSeconds(), true);
         if (!ok) return;
       }
       onNext();
@@ -620,11 +616,13 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
     gradeAll();
     setLocked(true);
 
-    const ok = await saveResults(activeEmail, getElapsedSeconds());
+    const ok = await saveResults(activeEmail, getElapsedSeconds(), true);
     if (!ok) return;
   };
 
-  const cardChrome = (qId: number) => {
+  /* ============================== Render ============================== */
+
+  const cardChrome = (qId: QId) => {
     const r = results[qId];
     if (!r) return "border-2 border-teal-700/80 bg-white";
     if (r.state === "correct")
@@ -635,7 +633,7 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
     return "border-2 border-slate-300 bg-white";
   };
 
-  const headerBadge = (qId: number) => {
+  const headerBadge = (qId: QId) => {
     const r = results[qId];
     if (!r) return null;
     if (r.state === "correct")
@@ -658,10 +656,36 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
           <div className="flex items-center justify-between">
             <Dialog
               open={cheatOpen}
-              onOpenChange={(next) => {
+              onOpenChange={async (next) => {
                 if (!cheatOpen && next) {
                   setCheatAccessed(true);
                   setCheatAccessCount((c) => c + 1);
+
+                  // log a cheat-sheet access for this attempt
+                  try {
+                    const activeEmail = getActiveEmail();
+                    if (activeEmail) {
+                      const { data: userRow } = await supabase
+                        .from("users")
+                        .select("id")
+                        .eq("email", activeEmail)
+                        .maybeSingle();
+                      if (userRow?.id) {
+                        let aId = attemptId;
+                        if (!aId) {
+                          aId = await getOrCreateAttempt(userRow.id as string);
+                          setAttemptId(aId);
+                        }
+                        if (aId) {
+                          await supabase
+                            .from("final_attempt_cheat_sheet_access")
+                            .insert({ attempt_id: aId });
+                        }
+                      }
+                    }
+                  } catch (e) {
+                    console.warn("cheat sheet access log failed:", e);
+                  }
                 }
                 setCheatOpen(next);
               }}
@@ -679,7 +703,7 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
                 </Button>
               </DialogTrigger>
 
-              {/* KEY: make the dialog a flex column with fixed height; scroll only the middle */}
+              {/* Scrollable dialog */}
               <DialogContent className="max-w-[92vw] lg:max-w-6xl h-[85vh] p-0 overflow-hidden flex flex-col">
                 <DialogHeader className="px-6 pt-4 pb-3 border-b shrink-0">
                   <DialogTitle className="text-teal-700">
@@ -687,7 +711,6 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
                   </DialogTitle>
                 </DialogHeader>
 
-                {/* This is the ONLY scrollable region */}
                 <div className="flex-1 min-h-0 overflow-y-auto">
                   <CheatSheetContent onClose={() => setCheatOpen(false)} />
                 </div>

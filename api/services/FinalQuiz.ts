@@ -1,30 +1,32 @@
 import { createApi, fakeBaseQuery } from "@reduxjs/toolkit/query/react";
-import type { PostgrestError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supebase";
 
 export type FinalQuizQuestion = {
-  question_id: number;
-  pattern_type: string;
+  question_id: string; // UUID
+  pattern_type: string | null;
   section:
     | "Theory & Concepts"
     | "UML Diagrams"
     | "Code Implementation"
-    | "Pattern Participants/Relationships";
+    | "Pattern Participants/Relationships"
+    | string;
   bloom_level:
     | "Remember"
     | "Understand"
     | "Apply"
     | "Analyze"
     | "Evaluate"
-    | "Create";
-  difficulty_level: "Easy" | "Medium" | "Hard";
+    | "Create"
+    | string;
+  difficulty_level: "Easy" | "Medium" | "Hard" | string;
   question_format:
     | "multiple-choice"
     | "select-multiple"
     | "fill-in-blank"
     | "identify-error"
     | "uml-interactive"
-    | "drag-drop";
+    | "drag-drop"
+    | string;
   question_text: string;
   question_data: Record<string, unknown>;
   correct_answer: unknown;
@@ -40,53 +42,213 @@ export type ListArgs = {
   difficulties?: FinalQuizQuestion["difficulty_level"][];
   formats?: FinalQuizQuestion["question_format"][];
   onlyActive?: boolean;
+  quizType?: string; // e.g. "Final"
 };
 
 export type ListResult = { rows: FinalQuizQuestion[]; total: number };
 
-const mapError = (e: PostgrestError) => ({
-  status: e.code || "SUPABASE_ERROR",
-  error: e.message,
-});
+type FinalAttemptStatus =
+  | { state: "none" }
+  | { state: "active"; attemptId: string; startedAt: string }
+  | {
+      state: "submitted";
+      attemptId: string;
+      startedAt: string;
+      submittedAt: string;
+    };
 
-interface HasFilters {
-  eq: (col: string, val: unknown) => any;
-  in: (col: string, vals: unknown[]) => any;
-  ilike: (col: string, pattern: string) => any;
+function throwIf(error?: any): void {
+  if (error) {
+    const e = new Error(error.message);
+    // @ts-expect-error keep original for debugging
+    e.code = error.code;
+    throw e;
+  }
 }
 
-const applyCommonFilters = <T extends HasFilters>(
-  q: T,
-  args?: Omit<ListArgs, "page" | "pageSize" | "noPagination">
-): T => {
-  const onlyActive = args?.onlyActive ?? true;
-  let qb = q;
-  if (onlyActive) qb = qb.eq("is_active", true);
-  if (args?.sections?.length) qb = qb.in("section", args.sections);
-  if (args?.blooms?.length) qb = qb.in("bloom_level", args.blooms);
-  if (args?.difficulties?.length)
-    qb = qb.in("difficulty_level", args.difficulties);
-  if (args?.formats?.length) qb = qb.in("question_format", args.formats);
-  return qb;
-};
+// ---- helpers ---------------------------------------------------------------
+
+async function getQuestionIdsForQuizType(
+  quizType = "Final"
+): Promise<string[]> {
+  const { data: qt, error: qtErr } = await supabase
+    .from("quiz_type")
+    .select("id")
+    .eq("quiz_type", quizType)
+    .maybeSingle();
+  throwIf(qtErr);
+  if (!qt?.id) return [];
+
+  const { data: links, error: linkErr } = await supabase
+    .from("question_quiz_type")
+    .select("question_id")
+    .eq("quiz_type_id", qt.id);
+  throwIf(linkErr);
+
+  return (links ?? []).map((r: any) => String(r.question_id));
+}
+
+async function fetchFinalQuestionsStrict(args?: ListArgs): Promise<ListResult> {
+  let filterIds: string[] | null = null;
+  if (args?.quizType) {
+    filterIds = await getQuestionIdsForQuizType(args.quizType);
+    if (filterIds.length === 0) return { rows: [], total: 0 };
+  }
+
+  let q = supabase.from("question_content").select(
+    `
+      question_id,
+      question_text,
+      question_data,
+      correct_answer,
+      points,
+      question:question!inner(
+        id,
+        is_active,
+        created_at,
+        updated_at,
+        question_format:question_format!inner(format),
+        bloom_level:bloom_level!inner(level),
+        difficulty_level:difficulty_level!inner(difficulty_level),
+        sections:sections!inner(section)
+      )
+    `,
+    { count: "exact" }
+  );
+
+  if (filterIds) q = q.in("question_id", filterIds);
+
+  const { data, error, count } = await q;
+  throwIf(error);
+
+  const raw = (data ?? []) as any[];
+  let rows: FinalQuizQuestion[] = raw.map((r) => {
+    const qn = r.question ?? {};
+    return {
+      question_id: String(r.question_id),
+      question_text: String(r.question_text ?? ""),
+      question_data: (r.question_data ?? {}) as Record<string, unknown>,
+      correct_answer: r.correct_answer,
+      points: typeof r.points === "number" ? r.points : r.points ?? null,
+      created_at: qn.created_at ?? null,
+      updated_at: qn.updated_at ?? null,
+      is_active: typeof qn.is_active === "boolean" ? qn.is_active : null,
+      question_format: qn.question_format?.format ?? "",
+      bloom_level: qn.bloom_level?.level ?? "",
+      difficulty_level: qn.difficulty_level?.difficulty_level ?? "",
+      section: qn.sections?.section ?? "",
+      pattern_type: null,
+    } as FinalQuizQuestion;
+  });
+
+  if (args?.onlyActive ?? true) rows = rows.filter((r) => !!r.is_active);
+  if (args?.sections?.length) {
+    const set = new Set(args.sections);
+    rows = rows.filter((r) => set.has(r.section));
+  }
+  if (args?.blooms?.length) {
+    const set = new Set(args.blooms);
+    rows = rows.filter((r) => set.has(r.bloom_level as any));
+  }
+  if (args?.difficulties?.length) {
+    const set = new Set(args.difficulties);
+    rows = rows.filter((r) => set.has(r.difficulty_level as any));
+  }
+  if (args?.formats?.length) {
+    const set = new Set(args.formats);
+    rows = rows.filter((r) => set.has(r.question_format as any));
+  }
+
+  const total = typeof count === "number" ? count : rows.length;
+  return { rows, total };
+}
+
+async function fetchFinalAttemptStatusStrict(
+  email: string,
+  quizType = "Final"
+): Promise<FinalAttemptStatus> {
+  const { data: userRow, error: userErr } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", email.trim())
+    .maybeSingle();
+  throwIf(userErr);
+  if (!userRow?.id) return { state: "none" };
+  const studentId = String(userRow.id);
+
+  const finalQids = await getQuestionIdsForQuizType(quizType);
+  if (finalQids.length === 0) return { state: "none" };
+
+  const { data: attempts, error: aErr } = await supabase
+    .from("quiz_attempt")
+    .select("id, started_at, submitted_at")
+    .eq("student_id", studentId)
+    .order("started_at", { ascending: false })
+    .limit(25);
+  throwIf(aErr);
+  if (!attempts?.length) return { state: "none" };
+
+  const attemptIds = attempts.map((a) => String(a.id));
+  const { data: items, error: iErr } = await supabase
+    .from("quiz_attempt_item")
+    .select("quiz_attempt_id, question_id")
+    .in("quiz_attempt_id", attemptIds)
+    .in("question_id", finalQids);
+  throwIf(iErr);
+
+  const finalAttemptIdSet = new Set(
+    (items ?? []).map((it) => String(it.quiz_attempt_id))
+  );
+
+  // Prefer the most recent submitted attempt
+  for (const a of attempts) {
+    const id = String(a.id);
+    if (!finalAttemptIdSet.has(id)) continue;
+    if (a.submitted_at) {
+      return {
+        state: "submitted",
+        attemptId: id,
+        startedAt: String(a.started_at),
+        submittedAt: String(a.submitted_at),
+      };
+    }
+  }
+  // Otherwise, a most recent active attempt
+  for (const a of attempts) {
+    const id = String(a.id);
+    if (!finalAttemptIdSet.has(id)) continue;
+    if (!a.submitted_at) {
+      return {
+        state: "active",
+        attemptId: id,
+        startedAt: String(a.started_at),
+      };
+    }
+  }
+
+  return { state: "none" };
+}
+
+// ---- API -------------------------------------------------------------------
 
 export const finalQuizApi = createApi({
   reducerPath: "finalQuizApi",
   baseQuery: fakeBaseQuery(),
-  tagTypes: ["FinalQuizQuestions"],
+  tagTypes: ["FinalQuizQuestions", "FinalAttemptStatus"],
   endpoints: (builder) => ({
     getFinalQuestions: builder.query<ListResult, ListArgs | undefined>({
       async queryFn(args) {
-        let q = supabase.from("final_quiz_questions").select("*");
-
-        q = applyCommonFilters(q, args);
-
-        const { data, error, count } = await q;
-        if (error) return { error: mapError(error) } as const;
-
-        const rows = (data ?? []) as FinalQuizQuestion[];
-        const total = typeof count === "number" ? count : rows.length;
-        return { data: { rows, total } } as const;
+        try {
+          const data = await fetchFinalQuestionsStrict(args);
+          return { data };
+        } catch (e: any) {
+          return {
+            error: {
+              status: e?.code ?? "UNEXPECTED",
+              data: e?.message ?? String(e),
+            } as any,
+          };
+        }
       },
       providesTags: (result) =>
         result
@@ -105,14 +267,17 @@ export const finalQuizApi = createApi({
       Omit<ListArgs, "page" | "pageSize" | "noPagination"> | undefined
     >({
       async queryFn(args) {
-        let q = supabase.from("final_quiz_questions").select("*");
-        q = applyCommonFilters(q, args);
-
-        const { data, error } = await q;
-        if (error) return { error: mapError(error) } as const;
-
-        const rows = (data ?? []) as FinalQuizQuestion[];
-        return { data: { rows, total: rows.length } } as const;
+        try {
+          const data = await fetchFinalQuestionsStrict(args);
+          return { data };
+        } catch (e: any) {
+          return {
+            error: {
+              status: e?.code ?? "UNEXPECTED",
+              data: e?.message ?? String(e),
+            } as any,
+          };
+        }
       },
       providesTags: (result) =>
         result
@@ -125,8 +290,40 @@ export const finalQuizApi = createApi({
             ]
           : [{ type: "FinalQuizQuestions" as const, id: "LIST" }],
     }),
+
+    // NEW: tell if the student already took (submitted) or has an active Final attempt
+    getFinalAttemptStatus: builder.query<
+      FinalAttemptStatus,
+      { email: string; quizType?: string }
+    >({
+      async queryFn({ email, quizType }) {
+        try {
+          const data = await fetchFinalAttemptStatusStrict(
+            email,
+            quizType ?? "Final"
+          );
+          return { data };
+        } catch (e: any) {
+          return {
+            error: {
+              status: e?.code ?? "UNEXPECTED",
+              data: e?.message ?? String(e),
+            } as any,
+          };
+        }
+      },
+      providesTags: (_res, _err, args) => [
+        {
+          type: "FinalAttemptStatus" as const,
+          id: (args.email || "unknown") + "::" + (args.quizType ?? "Final"),
+        },
+      ],
+    }),
   }),
 });
 
-export const { useGetFinalQuestionsQuery, useGetFinalQuestionsAllQuery } =
-  finalQuizApi;
+export const {
+  useGetFinalQuestionsQuery,
+  useGetFinalQuestionsAllQuery,
+  useGetFinalAttemptStatusQuery, // << use this in QuizPage
+} = finalQuizApi;
