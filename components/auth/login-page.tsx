@@ -1,42 +1,49 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { supabase } from "../../lib/supebase"
+import type React from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "../../lib/supebase";
 
 // Utility to switch to a destination route using the Next.js router
 function switchOnTo(destination: string, router: ReturnType<typeof useRouter>) {
-  router.push(destination)
+  router.push(destination);
 }
 
 interface LoginPageProps {
-  onSwitchToSignup: () => void
-  onSwitchToForgotPassword: () => void
+  onSwitchToSignup: () => void;
+  onSwitchToForgotPassword: () => void;
 }
 
-export default function LoginPage({ onSwitchToSignup, onSwitchToForgotPassword }: LoginPageProps) {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [role, setRole] = useState<"student" | "educator">("student")
-  const [showPassword, setShowPassword] = useState(false)
-  const router = useRouter()
+export default function LoginPage({
+  onSwitchToSignup,
+  onSwitchToForgotPassword,
+}: LoginPageProps) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"student" | "educator">("student");
+  const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
 
   // Redirects are handled inside this event handler
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     // Sign in with Supabase
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    console.log("Login attempt for email:", email, "role:", role);
 
     if (error) {
-      console.error("Failed to sign in:", error.message)
-      return
+      console.error("Failed to sign in:", error.message);
+      return;
     }
 
     if (!data.user) {
-      console.error("No user returned from sign-in")
-      return
+      console.error("No user returned from sign-in");
+      return;
     }
 
     // Fetch user profile info including has_seen_self_reflection and role
@@ -44,11 +51,11 @@ export default function LoginPage({ onSwitchToSignup, onSwitchToForgotPassword }
       .from("users")
       .select("has_seen_self_reflection, role")
       .eq("id", data.user.id)
-      .single()
+      .single();
 
     if (profileError) {
-      console.error("Failed to get user profile:", profileError.message)
-      return
+      console.error("Failed to get user profile:", profileError.message);
+      return;
     }
 
     // Store user in localStorage if needed
@@ -58,21 +65,19 @@ export default function LoginPage({ onSwitchToSignup, onSwitchToForgotPassword }
         id: data.user.id,
         email: data.user.email,
         role: profile.role,
-        has_seen_self_reflection: profile.has_seen_self_reflection
+        has_seen_self_reflection: profile.has_seen_self_reflection,
       })
-    )
+    );
 
     // Redirect logic
-    //console.log("User profile:", profile)
     if (profile.role === "student") {
-      switchOnTo("/student", router)
-    } 
-    else if (profile.role === "educator") {
-      switchOnTo("/educator/dashboard", router)
+      switchOnTo("/student", router);
+    } else if (profile.role === "educator") {
+      switchOnTo("/educator/dashboard", router);
     } else {
-      switchOnTo("/student", router)
+      switchOnTo("/student", router);
     }
-  }
+  };
 
   return (
     <div className="flex min-h-screen">
@@ -80,12 +85,16 @@ export default function LoginPage({ onSwitchToSignup, onSwitchToForgotPassword }
       <div className="w-full md:w-1/2 bg-teal-600 flex flex-col justify-center px-8 py-12">
         <div className="max-w-md mx-auto w-full">
           <div className="mb-8">
-            <label className="block text-white text-sm font-semibold mb-3">Role</label>
+            <label className="block text-white text-sm font-semibold mb-3">
+              Role
+            </label>
             <div className="flex gap-4">
               <button
                 onClick={() => setRole("student")}
                 className={`flex-1 py-2 rounded-lg font-semibold transition-colors ${
-                  role === "student" ? "bg-white text-teal-600" : "bg-teal-700 text-white hover:bg-teal-800"
+                  role === "student"
+                    ? "bg-white text-teal-600"
+                    : "bg-teal-700 text-white hover:bg-teal-800"
                 }`}
               >
                 Student
@@ -93,7 +102,9 @@ export default function LoginPage({ onSwitchToSignup, onSwitchToForgotPassword }
               <button
                 onClick={() => setRole("educator")}
                 className={`flex-1 py-2 rounded-lg font-semibold transition-colors ${
-                  role === "educator" ? "bg-white text-teal-600" : "bg-teal-700 text-white hover:bg-teal-800"
+                  role === "educator"
+                    ? "bg-white text-teal-600"
+                    : "bg-teal-700 text-white hover:bg-teal-800"
                 }`}
               >
                 Educator
@@ -102,7 +113,10 @@ export default function LoginPage({ onSwitchToSignup, onSwitchToForgotPassword }
           </div>
 
           <div className="mb-4">
-            <label htmlFor="email" className="block text-white font-semibold mb-2">
+            <label
+              htmlFor="email"
+              className="block text-white font-semibold mb-2"
+            >
               Email Address
             </label>
             <div className="relative">
@@ -118,7 +132,10 @@ export default function LoginPage({ onSwitchToSignup, onSwitchToForgotPassword }
           </div>
 
           <div className="mb-2">
-            <label htmlFor="password" className="block text-white font-semibold mb-2">
+            <label
+              htmlFor="password"
+              className="block text-white font-semibold mb-2"
+            >
               Password
             </label>
             <div className="relative">
@@ -155,7 +172,10 @@ export default function LoginPage({ onSwitchToSignup, onSwitchToForgotPassword }
 
           <p className="text-center text-white text-sm">
             Don't have an account?{" "}
-            <button onClick={onSwitchToSignup} className="font-bold hover:underline">
+            <button
+              onClick={onSwitchToSignup}
+              className="font-bold hover:underline"
+            >
               Sign up now
             </button>
           </p>
@@ -177,14 +197,16 @@ export default function LoginPage({ onSwitchToSignup, onSwitchToForgotPassword }
         <p className="text-gray-600 text-center mb-4">Software Modeling</p>
         <div className="space-y-4">
           <p className="text-gray-700 font-medium">
-            In the following app you as a student will be able to see where you are currently at with your knowledge on
-            the design pattern <strong>OBSERVER</strong>.
+            In the following app you as a student will be able to see where you
+            are currently at with your knowledge on the design pattern{" "}
+            <strong>OBSERVER</strong>.
           </p>
           <p className="text-gray-700 font-medium">
-            You will be able to test yourself with practice quizzes before taking the final exam assessment.
+            You will be able to test yourself with practice quizzes before
+            taking the final exam assessment.
           </p>
         </div>
       </div>
     </div>
-  )
+  );
 }

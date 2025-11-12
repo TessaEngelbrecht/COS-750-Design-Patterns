@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { StudentHeader } from "@/components/dashboards/student-header"
-import { StudentNavigation } from "@/components/dashboards/student-navigation"
-import SelfReflectionPage from "@/components/pages/self-reflection-page"
-import { InstructionsPage } from "@/components/pages/instructions-page"
-import { PracticePage } from "@/components/pages/practice-page"
-import { PracticeFeedbackPage } from "@/components/pages/practice-feedback-page"
-import { UMLBuilderPage } from "@/components/pages/uml-builder-page"
-import { CheatSheetPage } from "@/components/pages/cheat-sheet-page"
-import { QuizPage } from "@/components/pages/quiz-page"
-import { ResultsPage } from "@/components/pages/results-page"
-import { FeedbackPage } from "@/components/pages/feedback-page"
+import { useEffect, useState } from "react";
+import { StudentHeader } from "@/components/dashboards/student-header";
+import { StudentNavigation } from "@/components/dashboards/student-navigation";
+import SelfReflectionPage from "@/components/pages/self-reflection-page";
+import { InstructionsPage } from "@/components/pages/instructions-page";
+import { PracticePage } from "@/components/pages/practice-page";
+import { PracticeFeedbackPage } from "@/components/pages/practice-feedback-page";
+import { UMLBuilderPage } from "@/components/pages/uml-builder-page";
+import { CheatSheetPage } from "@/components/pages/cheat-sheet-page";
+import { QuizPage } from "@/components/pages/quiz-page";
+import { ResultsPage } from "@/components/pages/results-page";
+import { FeedbackPage } from "@/components/pages/feedback-page";
 
 type PageType =
   | "self-reflection"
@@ -22,69 +22,97 @@ type PageType =
   | "cheat-sheet"
   | "quiz"
   | "results"
-  | "feedback"
+  | "feedback";
 
 interface StudentDashboardProps {
-  userName: string
-  onLogout: () => void
+  userName: string;
+  onLogout: () => void;
 }
 
-export function StudentDashboard({ userName, onLogout }: StudentDashboardProps) {
-  const [currentPage, setCurrentPage] = useState<PageType | string>('')
-  const [practiceAnswers, setPracticeAnswers] = useState<any[]>([])
-  const user = JSON.parse(localStorage.getItem("user")||"{}")
-  const { has_seen_self_reflection }  = user
+export function StudentDashboard({
+  userName,
+  onLogout,
+}: StudentDashboardProps) {
+  const [currentPage, setCurrentPage] = useState<PageType | string>("");
+  const [practiceAnswers, setPracticeAnswers] = useState<any[]>([]);
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const { has_seen_self_reflection } = user;
   useEffect(() => {
     // Check if the user has seen the self-reflection page
     if (!has_seen_self_reflection) {
-      setCurrentPage("self-reflection")
-    } else { 
-      setCurrentPage("instructions")
+      setCurrentPage("self-reflection");
+    } else {
+      setCurrentPage("instructions");
     }
-  }, [has_seen_self_reflection])
-
+  }, [has_seen_self_reflection]);
 
   const renderPage = () => {
     switch (currentPage) {
       case "self-reflection":
-        return <SelfReflectionPage onNext={() => setCurrentPage("instructions")} />
+        return (
+          <SelfReflectionPage onNext={() => setCurrentPage("instructions")} />
+        );
       case "instructions":
-        return <InstructionsPage onNext={() => setCurrentPage("practice")} />
+        return <InstructionsPage onNext={() => setCurrentPage("practice")} />;
       case "practice":
         return (
           <PracticePage
             onNext={(answers) => {
-              setPracticeAnswers(answers)
-              setCurrentPage("practice-feedback")
+              setPracticeAnswers(answers);
+              setCurrentPage("practice-feedback");
             }}
           />
-        )
+        );
       case "practice-feedback":
-        return <PracticeFeedbackPage practiceAnswers={practiceAnswers} onNext={() => setCurrentPage("uml-builder")} />
+        return (
+          <PracticeFeedbackPage
+            practiceAnswers={practiceAnswers}
+            onNext={() => setCurrentPage("uml-builder")}
+          />
+        );
       case "uml-builder":
-        return <UMLBuilderPage onNext={() => setCurrentPage("cheat-sheet")} />
+        return <UMLBuilderPage onNext={() => setCurrentPage("cheat-sheet")} />;
       case "cheat-sheet":
-        return <CheatSheetPage onNext={() => setCurrentPage("quiz")} />
+        return <CheatSheetPage onNext={() => setCurrentPage("quiz")} />;
       case "quiz":
-        return <QuizPage onNext={() => setCurrentPage("results")} />
+        return (
+          <QuizPage
+            onNext={() => setCurrentPage("results")}
+            user={localStorage.getItem("user") || ""}
+          />
+        );
       case "results":
-        return <ResultsPage onNext={() => setCurrentPage("feedback")} />
+        return <ResultsPage onNext={() => setCurrentPage("feedback")} />;
       case "feedback":
-        return <FeedbackPage onNext={() => setCurrentPage("self-reflection")} />
+        return (
+          <FeedbackPage onNext={() => setCurrentPage("self-reflection")} />
+        );
       default:
-        return <SelfReflectionPage onNext={() => setCurrentPage("instructions")} />
+        return (
+          <SelfReflectionPage onNext={() => setCurrentPage("instructions")} />
+        );
     }
-  }
+  };
 
   // Only show navigation for the main 5 steps (not for self-reflection, instructions, or feedback)
-  const showNavigation = !["self-reflection", "instructions", "feedback"].includes(currentPage)
-  const mainPageType = currentPage as any
+  const showNavigation = ![
+    "self-reflection",
+    "instructions",
+    "feedback",
+    "quiz",
+  ].includes(currentPage);
+  const mainPageType = currentPage as any;
 
   return (
     <div className="min-h-screen bg-background">
       <StudentHeader userName={userName} onLogout={onLogout} />
-      {showNavigation && <StudentNavigation currentPage={mainPageType} onNavigate={setCurrentPage} />}
+      {showNavigation && (
+        <StudentNavigation
+          currentPage={mainPageType}
+          onNavigate={setCurrentPage}
+        />
+      )}
       <main className="flex-1">{renderPage()}</main>
     </div>
-  )
+  );
 }
