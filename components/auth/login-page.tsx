@@ -70,7 +70,6 @@ export default function LoginPage({
     );
 
     // Redirect logic
-    console.log("User profile:", profile);
     if (profile.role === "student") {
       switchOnTo("/student", router);
     } else if (profile.role === "educator") {
