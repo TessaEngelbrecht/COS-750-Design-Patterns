@@ -325,10 +325,21 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
   /* ========= attempt helpers ========= */
 
   async function getOrCreateAttempt(student_id: string) {
+    const { data: quizTypeRow, error: typeErr } = await supabase
+        .from("quiz_type")
+        .select("id")
+        .eq("quiz_type", "Final Quiz")
+        .limit(1)
+        .maybeSingle();
+      if (typeErr) throw typeErr;
+      if (!quizTypeRow?.id) return { state: "none" };
+      const quizTypeId = quizTypeRow.id;
+
     const { data: existing, error: findErr } = await supabase
       .from("quiz_attempt")
       .select("id, submitted_at")
       .eq("student_id", student_id)
+      .eq("quiz_type_id", quizTypeId)
       .is("submitted_at", null)
       .order("started_at", { ascending: false })
       .limit(1)
@@ -338,7 +349,7 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
 
     const { data: created, error: createErr } = await supabase
       .from("quiz_attempt")
-      .insert({ student_id })
+      .insert({ student_id:student_id, quiz_type_id: quizTypeId })
       .select("id")
       .single();
     if (createErr) throw createErr;

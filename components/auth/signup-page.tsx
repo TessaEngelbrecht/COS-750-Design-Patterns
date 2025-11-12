@@ -56,6 +56,7 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
       const { error: dbError } = await supabase.from("users").insert([
         {
           id: data.user.id,
+          auth_id: data.user.id,
           email: formData.email,
           first_name: formData.first_name,
           last_name: formData.last_name,

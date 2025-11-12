@@ -42,7 +42,7 @@ export type ListArgs = {
   difficulties?: FinalQuizQuestion["difficulty_level"][];
   formats?: FinalQuizQuestion["question_format"][];
   onlyActive?: boolean;
-  quizType?: string; // e.g. "Final"
+  quizType?: string; // e.g. "Final Quiz"
 };
 
 export type ListResult = { rows: FinalQuizQuestion[]; total: number };
@@ -69,7 +69,7 @@ function throwIf(error?: any): void {
 // ---- helpers ---------------------------------------------------------------
 
 async function getQuestionIdsForQuizType(
-  quizType = "Final"
+  quizType = "Final Quiz"
 ): Promise<string[]> {
   const { data: qt, error: qtErr } = await supabase
     .from("quiz_type")
@@ -165,7 +165,7 @@ async function fetchFinalQuestionsStrict(args?: ListArgs): Promise<ListResult> {
 
 async function fetchFinalAttemptStatusStrict(
   email: string,
-  quizType = "Final"
+  quizType = "Final Quiz"
 ): Promise<FinalAttemptStatus> {
   const { data: userRow, error: userErr } = await supabase
     .from("users")
@@ -176,51 +176,45 @@ async function fetchFinalAttemptStatusStrict(
   if (!userRow?.id) return { state: "none" };
   const studentId = String(userRow.id);
 
-  const finalQids = await getQuestionIdsForQuizType(quizType);
-  if (finalQids.length === 0) return { state: "none" };
+  // get quiz_type
+  const { data: quizTypeRow, error: typeErr } = await supabase
+    .from("quiz_type")
+    .select("id")
+    .eq("quiz_type", quizType)
+    .maybeSingle();
+  throwIf(typeErr);
+  if (!quizTypeRow?.id) return { state: "none" };
+  const quizTypeId = quizTypeRow.id;
 
   const { data: attempts, error: aErr } = await supabase
     .from("quiz_attempt")
     .select("id, started_at, submitted_at")
     .eq("student_id", studentId)
+    .eq("quiz_type_id", quizTypeId)
     .order("started_at", { ascending: false })
     .limit(25);
   throwIf(aErr);
+
   if (!attempts?.length) return { state: "none" };
-
-  const attemptIds = attempts.map((a) => String(a.id));
-  const { data: items, error: iErr } = await supabase
-    .from("quiz_attempt_item")
-    .select("quiz_attempt_id, question_id")
-    .in("quiz_attempt_id", attemptIds)
-    .in("question_id", finalQids);
-  throwIf(iErr);
-
-  const finalAttemptIdSet = new Set(
-    (items ?? []).map((it) => String(it.quiz_attempt_id))
-  );
 
   // Prefer the most recent submitted attempt
   for (const a of attempts) {
-    const id = String(a.id);
-    if (!finalAttemptIdSet.has(id)) continue;
     if (a.submitted_at) {
       return {
         state: "submitted",
-        attemptId: id,
+        attemptId: String(a.id),
         startedAt: String(a.started_at),
         submittedAt: String(a.submitted_at),
       };
     }
   }
-  // Otherwise, a most recent active attempt
+
+  // 5️⃣ Otherwise, check for most recent active attempt
   for (const a of attempts) {
-    const id = String(a.id);
-    if (!finalAttemptIdSet.has(id)) continue;
     if (!a.submitted_at) {
       return {
         state: "active",
-        attemptId: id,
+        attemptId: String(a.id),
         startedAt: String(a.started_at),
       };
     }
@@ -300,7 +294,7 @@ export const finalQuizApi = createApi({
         try {
           const data = await fetchFinalAttemptStatusStrict(
             email,
-            quizType ?? "Final"
+            quizType ?? "Final Quiz"
           );
           return { data };
         } catch (e: any) {
@@ -315,7 +309,7 @@ export const finalQuizApi = createApi({
       providesTags: (_res, _err, args) => [
         {
           type: "FinalAttemptStatus" as const,
-          id: (args.email || "unknown") + "::" + (args.quizType ?? "Final"),
+          id: (args.email || "unknown") + "::" + (args.quizType ?? "Final Quiz"),
         },
       ],
     }),
