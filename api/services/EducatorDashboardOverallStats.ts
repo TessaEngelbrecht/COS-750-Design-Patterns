@@ -4,9 +4,9 @@ import type { PostgrestError } from "@supabase/supabase-js";
 
 export type DashboardStats = {
   totalStudents: number;
-  avgProgress: number; // Average practice quiz
-  avgScore: number;    // Average final quiz
-  atRiskCount: number;
+  avgProgress: number; 
+  avgScore: number;   
+  atRiskCount: number; // stub for now
 };
 
 const mapError = (e: PostgrestError) => ({
@@ -22,34 +22,84 @@ export const educatorDashboardStatsApi = createApi({
     getStats: builder.query<DashboardStats, void>({
       async queryFn() {
         try {
-          // Fetch all necessary scores and intervention flags
+          console.log("Fetching all quiz attempts...");
+
           const { data, error } = await supabase
-            .from("student_performance_summary")
-            .select("practice_quiz_avg_score, final_quiz_score, flagged_for_intervention");
+            .from("quiz_attempt")
+            .select(`
+              id,
+              student_id,
+              quiz_type:quiz_type_id (quiz_type),
+              quiz_attempt_item (
+                id,
+                quiz_attempt_item_result (is_correct)
+              )
+            `);
 
-          if (error) return { error: mapError(error) };
-          if (!data) return { data: { totalStudents: 0, avgProgress: 0, avgScore: 0, atRiskCount: 0 } };
+          if (error) {
+            console.error("Supabase Error fetching quiz_attempt:", error);
+            return { error: mapError(error) };
+          }
 
-          const totalStudents = data.length;
+          if (!data || data.length === 0) {
+            return { data: { totalStudents: 0, avgProgress: 0, avgScore: 0, atRiskCount: -1 } };
+          }
+
+          console.log(`Total attempts fetched: ${data.length}`);
+
+          const processedAttempts = data.map((attempt: any) => {
+            const type = attempt.quiz_type?.quiz_type?.toLowerCase() || "unknown";
+            const totalQuestions = attempt.quiz_attempt_item?.length ?? 0;
+            const correctAnswers = attempt.quiz_attempt_item?.reduce(
+              (sum: number, item: any) => sum + (item.quiz_attempt_item_result?.is_correct ? 1 : 0),
+              0
+            );
+
+            return {
+              student_id: attempt.student_id,
+              type,
+              totalQuestions,
+              correctAnswers,
+            };
+          });
+
+          const practiceAttempts = processedAttempts.filter(a => a.type.includes("practice"));
           const avgProgress =
-            totalStudents > 0
-              ? data.reduce((sum, s) => sum + (s.practice_quiz_avg_score ?? 0), 0) / totalStudents
+            practiceAttempts.length > 0
+              ? practiceAttempts
+                  .map(a => (a.totalQuestions > 0 ? (a.correctAnswers / a.totalQuestions) * 100 : 0))
+                  .reduce((sum, p) => sum + p, 0) / practiceAttempts.length
               : 0;
+
+          const finalAttempts = processedAttempts.filter(a => a.type.includes("final"));
+          const finalByStudent: Record<string, any> = {};
+          finalAttempts.forEach(a => {
+            if (!finalByStudent[a.student_id]) {
+              finalByStudent[a.student_id] = a;
+            }
+          });
           const avgScore =
-            totalStudents > 0
-              ? data.reduce((sum, s) => sum + (s.final_quiz_score ?? 0), 0) / totalStudents
+            Object.values(finalByStudent).length > 0
+              ? Object.values(finalByStudent)
+                  .map((a: any) => (a.totalQuestions > 0 ? (a.correctAnswers / a.totalQuestions) * 100 : 0))
+                  .reduce((sum, s) => sum + s, 0) / Object.values(finalByStudent).length
               : 0;
-          const atRiskCount = data.filter((s) => s.flagged_for_intervention).length;
+
+          const uniqueStudents = new Set(processedAttempts.map(a => a.student_id));
+          const totalStudents = uniqueStudents.size;
+
+          console.log("✅ Computed stats:", { totalStudents, avgProgress, avgScore, atRiskCount: -1 });
 
           return {
             data: {
               totalStudents,
               avgProgress,
               avgScore,
-              atRiskCount,
+              atRiskCount: -1,
             },
           };
         } catch (e: any) {
+          console.error("Unknown Error:", e);
           return { error: { status: "UNKNOWN_ERROR", error: e.message } };
         }
       },
