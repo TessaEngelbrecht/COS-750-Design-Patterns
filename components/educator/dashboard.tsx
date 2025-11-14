@@ -99,16 +99,6 @@ export default function EducatorDashboard({ user, router }: DashboardProps) {
               Students
             </button>
             <button
-              onClick={() => setActiveTab("questions")}
-              className={`flex-1 py-4 px-6 font-semibold text-center transition-colors ${
-                activeTab === "questions"
-                  ? "text-teal-600 border-b-2 border-teal-600 bg-teal-50"
-                  : "text-gray-600 hover:text-gray-800"
-              }`}
-            >
-              Questions
-            </button>
-            <button
               onClick={() => setActiveTab("learning-areas")}
               className={`flex-1 py-4 px-6 font-semibold text-center transition-colors ${
                 activeTab === "learning-areas"
@@ -118,14 +108,24 @@ export default function EducatorDashboard({ user, router }: DashboardProps) {
             >
               Learning Areas
             </button>
+            <button
+              onClick={() => setActiveTab("questions")}
+              className={`flex-1 py-4 px-6 font-semibold text-center transition-colors ${
+                activeTab === "questions"
+                  ? "text-teal-600 border-b-2 border-teal-600 bg-teal-50"
+                  : "text-gray-600 hover:text-gray-800"
+              }`}
+            >
+              Questions
+            </button>
           </div>
 
           {/* Tab Content */}
           <div className="p-8">
             {activeTab === "overview" && <OverviewTab />}
             {activeTab === "students" && <StudentsTab />}
-            {activeTab === "questions" && <QuestionsTab />}
             {activeTab === "learning-areas" && <LearningAreasTab />}
+            {activeTab === "questions" && <QuestionsTab />}
           </div>
         </div>
       </main>
