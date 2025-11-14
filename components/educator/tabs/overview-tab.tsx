@@ -101,8 +101,8 @@ export default function OverviewTab() {
             title="Practice Performance Trend (Across Attempts)"
             helpText="Shows the average score for students across all practice attempts. Helps visualize improvement over time."
           />
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={practiceTrend}>
+          <ResponsiveContainer width="100%" height={350}>
+            <LineChart data={practiceTrend} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="attempt_no" label={{ value: "Attempt", position: "insideBottom", dy: 15 }} />
               <YAxis label={{ value: "Average Score (%)", angle: -90, position: "insideLeft", dy: 45 }} />
