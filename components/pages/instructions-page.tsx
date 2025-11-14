@@ -167,9 +167,9 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
   const instructions = [
     { number: 1, title: "Practice", description: "Pre-quiz to assess knowledge before the final quiz." },
     { number: 2, title: "UML Builder", description: "Interactive tool to build and visualize UML diagrams." },
-    { number: 3, title: "Cheat Sheet", description: "Reference guide with key concepts and examples." },
-    { number: 4, title: "Quiz", description: "Final assessment covering all Observer Pattern concepts." },
-    { number: 5, title: "Results", description: "Detailed analytics and personalized feedback." },
+    // { number: 3, title: "Cheat Sheet", description: "Reference guide with key concepts and examples." },
+    { number: 3, title: "Quiz", description: "Final assessment covering all Observer Pattern concepts." },
+    { number: 4, title: "Results", description: "Detailed analytics and personalized feedback." },
   ]
 
   const renderInstructionalSection = () => (
