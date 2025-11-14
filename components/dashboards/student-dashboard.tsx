@@ -21,7 +21,6 @@ type PageType =
   | "practice"
   | "practice-feedback"
   | "uml-builder"
-  | "cheat-sheet"
   | "quiz"
   | "results"
   | "feedback";
@@ -120,14 +119,6 @@ export default function StudentDashboard({
         return (
           <UMLBuilderPage
             // patternId={selectedPattern!}
-            onNext={() => goTo("cheat-sheet")}
-          />
-        );
-
-      case "cheat-sheet":
-        return (
-          <CheatSheetPage
-            // patternId={selectedPattern!}
             onNext={() => goTo("quiz")}
           />
         );
@@ -168,7 +159,6 @@ export default function StudentDashboard({
               currentPage as
                 | "practice"
                 | "uml-builder"
-                | "cheat-sheet"
                 | "quiz"
                 | "results"
                 | "feedback"
