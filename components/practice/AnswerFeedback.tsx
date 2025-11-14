@@ -110,7 +110,7 @@ export function AnswerFeedback({
               isCorrect ? "text-green-700" : "text-red-700"
             }`}
           >
-            <strong>Explanation:</strong> {question.correct_answer?.reason}
+            <strong>Explanation:</strong> {question.correct_answer?.reason ?? question.question_data?.explanation}
           </p>
         </div>
       </div>
