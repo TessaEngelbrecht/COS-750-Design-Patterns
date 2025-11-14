@@ -132,13 +132,13 @@ export function ResultsPage({
           return;
         }
 
+        // 1️⃣ Get the user ID
         const { data: userRow, error: userErr } = await supabase
           .from("users")
           .select("id")
           .eq("email", email.trim())
           .maybeSingle();
         if (userErr) throw userErr;
-
         if (!userRow?.id) {
           if (mounted) {
             setRows([]);
@@ -147,49 +147,98 @@ export function ResultsPage({
           return;
         }
 
+        // 2️⃣ Get the quiz_type_id for "Final"
+        const { data: quizTypeRow, error: quizTypeErr } = await supabase
+          .from("quiz_type")
+          .select("id")
+          .eq("quiz_type", "Final Quiz")
+          .maybeSingle();
+        if (quizTypeErr) throw quizTypeErr;
+        if (!quizTypeRow?.id) {
+          if (mounted) {
+            setRows([]);
+            setLoading(false);
+          }
+          return;
+        }
+
+        // 3️⃣ Fetch all quiz attempt items for that user and quiz type
         const { data: resultRows, error: resErr } = await supabase
-          .from("final_quiz_results")
-          .select(
-            `
-            result_id,
-            student_id,
-            question_id,
+          .from("quiz_attempt_item_result")
+          .select(`
             is_correct,
             points_earned,
-            time_spent_seconds,
-            cheat_sheet_accessed,
-            cheat_sheet_access,
-            final_quiz_questions!inner (
-              bloom_level,
-              points
+            quiz_attempt_item:quiz_attempt_item!inner (
+              id,
+              question:question!inner (
+                id,
+                bloom_level:bloom_level!question_bloom_id_fkey (
+                  id,
+                  level
+                )
+              ),
+              quiz_attempt:quiz_attempt!inner (
+                id,
+                student_id,
+                quiz_type_id,
+                final_attempt_cheat_sheet_access:final_attempt_cheat_sheet_access!final_attempt_cheat_sheet_access_attempt_id_fkey (
+                  id,
+                  access_time
+                )
+              )
             )
-          `
-          )
-          .eq("student_id", userRow.id)
-          .order("question_id", { ascending: true });
+          `)
+          .eq("quiz_attempt_item.quiz_attempt.student_id", userRow.id)
+          .eq("quiz_attempt_item.quiz_attempt.quiz_type_id", quizTypeRow.id);
+
+
+        
+          // .order("question.id", { ascending: true });
 
         if (resErr) throw resErr;
 
-        type RawRow = Omit<RowResult, "final_quiz_questions"> & {
-          final_quiz_questions:
-            | Array<{ bloom_level: BloomLevel | null; points: number | null }>
-            | { bloom_level: BloomLevel | null; points: number | null }
-            | null;
+        // 4️⃣ Normalize to your existing RowResult shape
+        type RawRow = {
+          is_correct: boolean;
+          points_earned: number;
+          quiz_attempt_item?: {
+            id: string;
+            question?: {
+              id: string;
+              bloom_level?: { id: string; level: BloomLevel } | null; // object, not array
+            } | null;
+            quiz_attempt?: {
+              id: string;
+              student_id: string;
+              quiz_type_id: string;
+              final_attempt_cheat_sheet_access?: { id: string; access_time: string }[]; // child array
+            } | null;
+          } | null;
         };
 
-        const normalized: RowResult[] = (resultRows ?? []).map((r: RawRow) => ({
-          result_id: r.result_id,
-          student_id: r.student_id,
-          question_id: r.question_id,
-          is_correct: r.is_correct,
-          points_earned: r.points_earned ?? null,
-          time_spent_seconds: r.time_spent_seconds ?? null,
-          cheat_sheet_accessed: r.cheat_sheet_accessed ?? null,
-          cheat_sheet_access: r.cheat_sheet_access ?? null,
-          final_quiz_questions: Array.isArray(r.final_quiz_questions)
-            ? r.final_quiz_questions[0] ?? null
-            : r.final_quiz_questions ?? null,
-        }));
+        const normalized: RowResult[] = (resultRows ?? []).map((r: RawRow) => {
+          const item = r.quiz_attempt_item ?? null;
+          const question = item?.question ?? null;
+          const bloom = question?.bloom_level ?? null; // object
+          const attempt = item?.quiz_attempt ?? null;
+          const cheatEntries = attempt?.final_attempt_cheat_sheet_access ?? [];
+          const cheatCount = cheatEntries.length;
+
+          return {
+            result_id: 0, // keep as number if you want, or store string; UUID slicing is cosmetic
+            student_id: attempt?.student_id ?? "",
+            question_id: 0,
+            is_correct: r.is_correct,
+            points_earned: r.points_earned,
+            time_spent_seconds: 0,
+            cheat_sheet_accessed: cheatCount > 0,
+            cheat_sheet_access: cheatCount,
+            final_quiz_questions: {
+              bloom_level: (bloom?.level as BloomLevel) ?? "Remember",
+              points: r.points_earned,
+            },
+          };
+        });
 
         if (mounted) {
           setRows(normalized);
@@ -214,9 +263,20 @@ export function ResultsPage({
       const correct = rows.filter((r) => r.is_correct).length;
       const finalPct = pct(correct, total);
 
-      const cheatAccesses = rows.length ? rows[0]?.cheat_sheet_access ?? 0 : 0;
-      const timeSpent = rows.length ? rows[0]?.time_spent_seconds ?? 0 : 0;
+      // 🕓 Sum time spent across all questions
+      const timeSpent = rows.reduce(
+        (acc, r) => acc + (r.time_spent_seconds ?? 0),
+        0
+      );
 
+      // 🧠 Count distinct attempts with cheat-sheet usage
+      const cheatAccesses = new Set(
+        rows
+          .filter((r) => r.cheat_sheet_accessed)
+          .map((r) => r.student_id) // or r.result_id / attempt_id depending on your shape
+      ).size;
+
+      // 🧩 Cognitive breakdown
       const levels: BloomLevel[] = [
         "Remember",
         "Understand",
@@ -229,8 +289,8 @@ export function ResultsPage({
       levels.forEach((lv) => buckets.set(lv, { total: 0, correct: 0 }));
 
       rows.forEach((r) => {
-        const lv = (r.final_quiz_questions?.bloom_level ??
-          "Remember") as BloomLevel;
+        const lv =
+          (r.final_quiz_questions?.bloom_level ?? "Remember") as BloomLevel;
         const b = buckets.get(lv)!;
         b.total += 1;
         if (r.is_correct) b.correct += 1;

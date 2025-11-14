@@ -14,7 +14,7 @@ export function QuestionBadges({ question }: QuestionBadgesProps) {
         {question.bloom_level}
       </span>
       <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded">
-        {question.difficulty_level}
+        {question.difficulty}
       </span>
     </div>
   )

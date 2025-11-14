@@ -6,9 +6,9 @@ export default function StepIndicator({ currentStep }: StepIndicatorProps) {
   const steps = [
     { num: 1, label: "Practice" },
     { num: 2, label: "UML Builder" },
-    { num: 3, label: "Cheat Sheet" },
-    { num: 4, label: "Quiz" },
-    { num: 5, label: "Results" },
+    // { num: 3, label: "Cheat Sheet" },
+    { num: 3, label: "Quiz" },
+    { num: 4, label: "Results" },
   ]
 
   return (

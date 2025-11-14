@@ -1,67 +1,71 @@
-"use client"
+"use client";
 
-import Image from "next/image"
-import { useEffect, useState } from "react"
-import { supabase } from "../../lib/supebase"
+import Image from "next/image";
+import { useEffect, useState } from "react";
 
-interface ResetPasswordProps {
-  onBackToLogin?: () => void;
-}
+export default function ResetPassword() {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [sessionSet, setSessionSet] = useState(false);
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-const ResetPassword = ({ onBackToLogin }: ResetPasswordProps) => {
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [message, setMessage] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [signedIn, setSignedIn] = useState(false)
-
+  // Capture access token & set session via API
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      // Parse access_token and type from the hash
-      const hash = window.location.hash
-      const params = new URLSearchParams(hash.replace(/^#/, ""))
-      const access_token = params.get("access_token")
-      const type = params.get("type")
-      if (type !== "recovery" || !access_token) {
-        setMessage("Invalid or expired recovery link.")
-        return
-      }
-      // Set session with the recovery token
-      supabase.auth.setSession({
-        access_token: access_token,
-        refresh_token: "",
-      }).then(({ error }) => {
-        if (error) {
-          setMessage("Session error: " + error.message)
-        } else {
-          setSignedIn(true)
-        }
-      })
+    const hash = window.location.hash;
+    const params = new URLSearchParams(hash.replace(/^#/, ""));
+    const access_token = params.get("access_token");
+    const type = params.get("type");
+
+    if (type !== "recovery" || !access_token) {
+      setMessage("Invalid or expired recovery link.");
+      return;
     }
-  }, [])
+
+    (async () => {
+      const res = await fetch("/api/auth/set-session", {
+        method: "POST",
+        body: JSON.stringify({ access_token }),
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        setMessage("Error: " + data.error);
+      } else {
+        setSessionSet(true);
+      }
+    })();
+  }, []);
 
   const handleReset = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setMessage("")
-    if (!signedIn) {
-      setMessage("Invalid session. Please use the link from your email again.")
-      return
+    e.preventDefault();
+    if (!sessionSet) {
+      setMessage("Session error. Use the link from your email again.");
+      return;
     }
+
     if (password !== confirmPassword) {
-      setMessage("Passwords do not match.")
-      return
+      setMessage("Passwords do not match.");
+      return;
     }
-    setLoading(true)
-    const { error } = await supabase.auth.updateUser({ password })
-    setLoading(false)
-    if (error) {
-      setMessage("Error: " + error.message)
+
+    setLoading(true);
+
+    const res = await fetch("/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    });
+
+    const data = await res.json();
+    setLoading(false);
+
+    if (data.error) {
+      setMessage("Error: " + data.error);
     } else {
-      setMessage("Your password has been reset! You can now log in.")
+      setMessage("Password reset successful. You can now log in.");
     }
-  }
+  };
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -167,5 +171,3 @@ const ResetPassword = ({ onBackToLogin }: ResetPasswordProps) => {
     </div>
   )
 }
-
-export default ResetPassword
