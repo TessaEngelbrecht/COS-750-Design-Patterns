@@ -42,17 +42,25 @@ export default function StudentDashboard({
   const [practiceAnswers, setPracticeAnswers] = useState<any[]>([]);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const goTo = (page: PageType) => setCurrentPage(page);
-// ---------------------------
-  // NEW: Check if reflection already completed
-  // ---------------------------
+
+  // Handler to go back to pattern selection
+  const handleBackToPatternSelection = () => {
+    setCurrentPage("pattern-selection");
+    setSelectedPattern(null);
+    setPracticeAnswers([]);
+  };
+
+  const handleBackToLesson = () => {
+      setCurrentPage("instructions");
+  };
+
   const evaluateReflectionStatus = async (patternId: string) => {
     setLoadingProfile(true);
 
     const res = await fetch(`/api/pattern-profile/${patternId}`);
     const data = await res.json();
 
-    const hasDoneReflection =
-      data?.profile?.has_completed_reflection === true;
+    const hasDoneReflection = data?.profile?.has_completed_reflection === true;
 
     setLoadingProfile(false);
 
@@ -92,7 +100,6 @@ export default function StudentDashboard({
       case "instructions":
         return (
           <InstructionsPage
-            // patternId={selectedPattern!}
             onNext={() => goTo("practice")}
           />
         );
@@ -119,7 +126,6 @@ export default function StudentDashboard({
       case "uml-builder":
         return (
           <UMLBuilderPage
-            // patternId={selectedPattern!}
             onNext={() => goTo("cheat-sheet")}
           />
         );
@@ -127,7 +133,6 @@ export default function StudentDashboard({
       case "cheat-sheet":
         return (
           <CheatSheetPage
-            // patternId={selectedPattern!}
             onNext={() => goTo("quiz")}
           />
         );
@@ -135,9 +140,7 @@ export default function StudentDashboard({
       case "quiz":
         return (
           <QuizPage
-            // patternId={selectedPattern!}
-            // userId={userId}
-            user = {userId}
+            user={userId}
             onNext={() => goTo("results")}
           />
         );
@@ -150,7 +153,6 @@ export default function StudentDashboard({
     }
   };
 
-  // Only show navigation for main learning steps
   const showNav = ![
     "pattern-selection",
     "self-reflection",
@@ -161,21 +163,26 @@ export default function StudentDashboard({
 
   return (
     <div className="min-h-screen bg-background">
-        <StudentHeader userName={userName}/>
-        {showNav && (
-          <StudentNavigation
-            currentPage={
-              currentPage as
-                | "practice"
-                | "uml-builder"
-                | "cheat-sheet"
-                | "quiz"
-                | "results"
-                | "feedback"
-            }
-            onNavigate={setCurrentPage}
-          />
-        )}
+      <StudentHeader
+        userName={userName}
+        currentPage={currentPage}
+        onBackToPatternSelection={handleBackToPatternSelection}
+        onBackToLesson={handleBackToLesson}
+      />
+      {showNav && (
+        <StudentNavigation
+          currentPage={
+            currentPage as
+              | "practice"
+              | "uml-builder"
+              | "cheat-sheet"
+              | "quiz"
+              | "results"
+              | "feedback"
+          }
+          onNavigate={setCurrentPage}
+        />
+      )}
       <main className="flex-1">
         {renderPage()}
       </main>
