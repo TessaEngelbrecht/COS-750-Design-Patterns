@@ -43,13 +43,12 @@ export interface CreateQuestionParams {
   question_data: any;
   correct_answer: any;
   points: number;
-  quiz_type_ids: string[]; // Can be practice, final, or both
+  quiz_type_ids: string[]; 
   topic_ids: string[];
 }
 
 export async function createQuestion(params: CreateQuestionParams) {
   try {
-    // 1. Insert into question table
     const { data: questionData, error: questionError } = await supabase
       .from("question")
       .insert({
@@ -70,7 +69,6 @@ export async function createQuestion(params: CreateQuestionParams) {
 
     const questionId = questionData.id;
 
-    // 2. Insert into question_content
     const { error: contentError } = await supabase
       .from("question_content")
       .insert({
@@ -86,7 +84,6 @@ export async function createQuestion(params: CreateQuestionParams) {
       throw new Error("Failed to create question content: " + contentError.message);
     }
 
-    // 3. Insert into question_quiz_type (practice/final)
     if (params.quiz_type_ids.length > 0) {
       const quizTypeInserts = params.quiz_type_ids.map((quizTypeId) => ({
         question_id: questionId,
@@ -103,7 +100,6 @@ export async function createQuestion(params: CreateQuestionParams) {
       }
     }
 
-    // 4. Insert into question_topic
     if (params.topic_ids.length > 0) {
       const topicInserts = params.topic_ids.map((topicId) => ({
         question_id: questionId,
@@ -127,7 +123,6 @@ export async function createQuestion(params: CreateQuestionParams) {
   }
 }
 
-// Fetch all questions with full details
 export async function getAllQuestions() {
   try {
     const { data, error } = await supabase
@@ -154,6 +149,141 @@ export async function getAllQuestions() {
     return data || [];
   } catch (error: any) {
     console.error("❌ Error in getAllQuestions:", error);
+    throw error;
+  }
+}
+
+export interface UpdateQuestionParams {
+  question_id: string;
+  format_id: string;
+  difficulty_id: string;
+  bloom_id: string;
+  section_id: string;
+  question_text: string;
+  question_data: any;
+  correct_answer: any;
+  points: number;
+  quiz_type_ids: string[];
+  topic_ids: string[];
+}
+
+export async function updateQuestion(params: UpdateQuestionParams) {
+  try {
+    const { error: questionError } = await supabase
+      .from("question")
+      .update({
+        format_id: params.format_id,
+        difficulty_id: params.difficulty_id,
+        bloom_id: params.bloom_id,
+        section_id: params.section_id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", params.question_id);
+    if (questionError) {
+      console.error("❌ Error updating question:", questionError);
+      throw new Error("Failed to update question: " + questionError.message);
+    }
+
+    const { error: contentError } = await supabase
+      .from("question_content")
+      .update({
+        question_text: params.question_text,
+        question_data: params.question_data,
+        correct_answer: params.correct_answer,
+        points: params.points,
+      })
+      .eq("question_id", params.question_id);
+
+    if (contentError) {
+      console.error("❌ Error updating question content:", contentError);
+      throw new Error(
+        "Failed to update question content: " + contentError.message
+      );
+    }
+
+    await supabase
+      .from("question_quiz_type")
+      .delete()
+      .eq("question_id", params.question_id);
+
+    if (params.quiz_type_ids.length > 0) {
+      const quizTypeInserts = params.quiz_type_ids.map((quizTypeId) => ({
+        question_id: params.question_id,
+        quiz_type_id: quizTypeId,
+      }));
+
+      const { error: quizTypeError } = await supabase
+        .from("question_quiz_type")
+        .insert(quizTypeInserts);
+
+      if (quizTypeError) {
+        console.error("❌ Error updating quiz types:", quizTypeError);
+        throw new Error(
+          "Failed to update quiz types: " + quizTypeError.message
+        );
+      }
+    }
+
+    await supabase
+      .from("question_topic")
+      .delete()
+      .eq("question_id", params.question_id);
+
+    if (params.topic_ids.length > 0) {
+      const topicInserts = params.topic_ids.map((topicId) => ({
+        question_id: params.question_id,
+        topic_id: topicId,
+      }));
+
+      const { error: topicError } = await supabase
+        .from("question_topic")
+        .insert(topicInserts);
+
+      if (topicError) {
+        console.error("❌ Error updating topics:", topicError);
+        throw new Error("Failed to update topics: " + topicError.message);
+      }
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("❌ Error in updateQuestion:", error);
+    throw error;
+  }
+}
+
+export async function deactivateQuestion(questionId: string) {
+  try {
+    const { error } = await supabase
+      .from("question")
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq("id", questionId);
+    if (error) {
+      console.error("❌ Error deactivating question:", error);
+      throw new Error("Failed to deactivate question: " + error.message);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("❌ Error in deactivateQuestion:", error);
+    throw error;
+  }
+}
+
+export async function activateQuestion(questionId: string) {
+  try {
+    const { error } = await supabase
+      .from("question")
+      .update({ is_active: true, updated_at: new Date().toISOString() })
+      .eq("id", questionId);
+    if (error) {
+      console.error("❌ Error activating question:", error);
+      throw new Error("Failed to activate question: " + error.message);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("❌ Error in activateQuestion:", error);
     throw error;
   }
 }

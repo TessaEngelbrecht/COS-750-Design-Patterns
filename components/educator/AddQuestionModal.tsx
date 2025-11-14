@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -5,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { X } from "lucide-react";
-import { getQuestionMetadata, createQuestion } from "@/api/services/AddQuestions";
+import { getQuestionMetadata, createQuestion, updateQuestion } from "@/api/services/AddQuestions";
 
 interface AddQuestionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
   authorId: string;
+  editQuestion?: any;
 }
 
 export function AddQuestionModal({
@@ -19,6 +21,7 @@ export function AddQuestionModal({
   onClose,
   onSuccess,
   authorId,
+  editQuestion,
 }: AddQuestionModalProps) {
   const [metadata, setMetadata] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -33,16 +36,49 @@ export function AddQuestionModal({
   const [points, setPoints] = useState(1);
   const [quizTypeIds, setQuizTypeIds] = useState<string[]>([]);
   const [topicIds, setTopicIds] = useState<string[]>([]);
-
-  // JSON editors
   const [questionDataJson, setQuestionDataJson] = useState("{}");
   const [correctAnswerJson, setCorrectAnswerJson] = useState("{}");
 
+  const isEditMode = !!editQuestion;
+
+  // Lock body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
+      document.body.style.overflow = 'hidden';
       loadMetadata();
+      if (editQuestion) {
+        populateEditData();
+      } else {
+        resetForm();
+      }
+    } else {
+      document.body.style.overflow = 'unset';
     }
-  }, [isOpen]);
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, editQuestion]);
+
+  const populateEditData = () => {
+    if (!editQuestion) return;
+
+    setQuestionText(editQuestion.content?.[0]?.question_text || "");
+    setFormatId(editQuestion.format?.id || "");
+    setDifficultyId(editQuestion.difficulty?.id || "");
+    setBloomId(editQuestion.bloom?.id || "");
+    setSectionId(editQuestion.section?.id || "");
+    setPoints(editQuestion.content?.[0]?.points || 1);
+    
+    const quizTypes = editQuestion.quiz_types?.map((qt: any) => qt.quiz_type?.id) || [];
+    setQuizTypeIds(quizTypes);
+    
+    const topics = editQuestion.topics?.map((t: any) => t.topic?.id) || [];
+    setTopicIds(topics);
+    
+    setQuestionDataJson(JSON.stringify(editQuestion.content?.[0]?.question_data || {}, null, 2));
+    setCorrectAnswerJson(JSON.stringify(editQuestion.content?.[0]?.correct_answer || {}, null, 2));
+  };
 
   const loadMetadata = async () => {
     try {
@@ -58,9 +94,11 @@ export function AddQuestionModal({
 
   const handleFormatChange = (formatId: string) => {
     setFormatId(formatId);
+    
+    if (isEditMode) return;
+    
     const format = metadata?.formats.find((f: any) => f.id === formatId);
     
-    // Set template based on format
     if (format) {
       switch (format.format) {
         case "multiple-choice":
@@ -134,7 +172,6 @@ export function AddQuestionModal({
   };
 
   const handleSubmit = async () => {
-    // Validation
     if (!questionText.trim()) {
       alert("Please enter question text");
       return;
@@ -159,26 +196,43 @@ export function AddQuestionModal({
 
     setSaving(true);
     try {
-      await createQuestion({
-        format_id: formatId,
-        difficulty_id: difficultyId,
-        bloom_id: bloomId,
-        section_id: sectionId,
-        author_id: authorId,
-        question_text: questionText,
-        question_data: questionData,
-        correct_answer: correctAnswer,
-        points,
-        quiz_type_ids: quizTypeIds,
-        topic_ids: topicIds,
-      });
+      if (isEditMode) {
+        await updateQuestion({
+          question_id: editQuestion.id,
+          format_id: formatId,
+          difficulty_id: difficultyId,
+          bloom_id: bloomId,
+          section_id: sectionId,
+          question_text: questionText,
+          question_data: questionData,
+          correct_answer: correctAnswer,
+          points,
+          quiz_type_ids: quizTypeIds,
+          topic_ids: topicIds,
+        });
+        alert("Question updated successfully!");
+      } else {
+        await createQuestion({
+          format_id: formatId,
+          difficulty_id: difficultyId,
+          bloom_id: bloomId,
+          section_id: sectionId,
+          author_id: authorId,
+          question_text: questionText,
+          question_data: questionData,
+          correct_answer: correctAnswer,
+          points,
+          quiz_type_ids: quizTypeIds,
+          topic_ids: topicIds,
+        });
+        alert("Question created successfully!");
+      }
 
-      alert("Question created successfully!");
       onSuccess();
       onClose();
       resetForm();
     } catch (error: any) {
-      alert("Failed to create question: " + (error.message || error));
+      alert(`Failed to ${isEditMode ? 'update' : 'create'} question: ` + (error.message || error));
     } finally {
       setSaving(false);
     }
@@ -200,10 +254,12 @@ export function AddQuestionModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <Card className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+    <div className="fixed inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <Card className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-teal-700">Add New Question</h2>
+          <h2 className="text-2xl font-bold text-teal-700">
+            {isEditMode ? "Edit Question" : "Add New Question"}
+          </h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
             <X className="w-6 h-6" />
           </button>
@@ -246,7 +302,6 @@ export function AddQuestionModal({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Difficulty */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Difficulty *
@@ -265,7 +320,6 @@ export function AddQuestionModal({
                 </select>
               </div>
 
-              {/* Bloom Level */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Bloom Level *
@@ -284,7 +338,6 @@ export function AddQuestionModal({
                 </select>
               </div>
 
-              {/* Section */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Section *
@@ -304,7 +357,6 @@ export function AddQuestionModal({
               </div>
             </div>
 
-            {/* Points */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Points
@@ -318,7 +370,6 @@ export function AddQuestionModal({
               />
             </div>
 
-            {/* Quiz Types */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Quiz Type * (Select at least one)
@@ -338,7 +389,6 @@ export function AddQuestionModal({
               </div>
             </div>
 
-            {/* Topics */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Related Topics (Optional)
@@ -358,7 +408,6 @@ export function AddQuestionModal({
               </div>
             </div>
 
-            {/* Question Data JSON */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Question Data (JSON)
@@ -371,7 +420,6 @@ export function AddQuestionModal({
               />
             </div>
 
-            {/* Correct Answer JSON */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Correct Answer (JSON)
@@ -384,7 +432,6 @@ export function AddQuestionModal({
               />
             </div>
 
-            {/* Buttons */}
             <div className="flex gap-4 justify-end">
               <Button
                 variant="outline"
@@ -398,7 +445,7 @@ export function AddQuestionModal({
                 disabled={saving}
                 className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2"
               >
-                {saving ? "Creating..." : "Create Question"}
+                {saving ? (isEditMode ? "Updating..." : "Creating...") : (isEditMode ? "Update Question" : "Create Question")}
               </Button>
             </div>
           </div>
