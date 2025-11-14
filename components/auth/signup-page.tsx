@@ -3,8 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signupUser } from "@/lib/auth/signup";
+import type { FormEvent, ChangeEvent } from "react";
 
-export default function SignupPage({ onSwitchToLogin }) {
+interface SignupPageProps {
+  onSwitchToLogin: () => void;
+}
+
+export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -15,17 +20,17 @@ export default function SignupPage({ onSwitchToLogin }) {
 
   const [error, setError] = useState("");
   const router = useRouter();
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  // FIX: type annotation for e
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
   };
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  const handleSignup = async (e) => {
+  // FIX: type annotation for e
+  const handleSignup = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -44,9 +49,13 @@ export default function SignupPage({ onSwitchToLogin }) {
     router.push("/student");
   };
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
   return (
     <div className="flex min-h-screen flex-col-reverse md:flex-row">
-      {/* Left Side - Illustration */}
+      {/* Illustration side... */}
       <div className="w-full md:w-1/2 bg-white flex flex-col justify-center px-8 py-12">
         <div className="relative mb-8 h-64">
           <div className="bg-gray-200 rounded-3xl p-8 h-full flex items-center justify-center">
@@ -61,29 +70,21 @@ export default function SignupPage({ onSwitchToLogin }) {
         <p className="text-gray-600 text-center mb-4">Software Modeling</p>
         <div className="space-y-4">
           <p className="text-gray-700 font-medium">
-            In the following app you as a student will be able to see where you
-            are currently at with your knowledge on the design pattern{" "}
-            <strong>OBSERVER</strong>.
+            In the following app you as a student will be able to see where you are currently at with your knowledge on the design pattern <strong>OBSERVER</strong>.
           </p>
           <p className="text-gray-700 font-medium">
-            You will be able to test yourself with practice quizzes before
-            taking the final exam assessment.
+            You will be able to test yourself with practice quizzes before taking the final exam assessment.
           </p>
         </div>
       </div>
 
-      {/* Right Side - Signup Form */}
+      {/* Signup form side... */}
       <div className="w-full md:w-1/2 bg-teal-600 flex flex-col justify-center px-8 py-12">
         <div className="max-w-md mx-auto w-full">
           <h1 className="text-white text-3xl font-bold mb-8">Sign Up</h1>
-
+          {/* First Name */}
           <div className="mb-4">
-            <label
-              htmlFor="first_name"
-              className="block text-white font-semibold mb-2"
-            >
-              First Name
-            </label>
+            <label htmlFor="first_name" className="block text-white font-semibold mb-2">First Name</label>
             <input
               id="first_name"
               name="first_name"
@@ -94,13 +95,9 @@ export default function SignupPage({ onSwitchToLogin }) {
               placeholder="Your first name"
             />
           </div>
+          {/* Last Name */}
           <div className="mb-4">
-            <label
-              htmlFor="last_name"
-              className="block text-white font-semibold mb-2"
-            >
-              Last Name
-            </label>
+            <label htmlFor="last_name" className="block text-white font-semibold mb-2">Last Name</label>
             <input
               id="last_name"
               name="last_name"
@@ -111,14 +108,9 @@ export default function SignupPage({ onSwitchToLogin }) {
               placeholder="Your last name"
             />
           </div>
-
+          {/* Email */}
           <div className="mb-4">
-            <label
-              htmlFor="email"
-              className="block text-white font-semibold mb-2"
-            >
-              Email Address
-            </label>
+            <label htmlFor="email" className="block text-white font-semibold mb-2">Email Address</label>
             <div className="relative">
               <input
                 id="email"
@@ -129,12 +121,7 @@ export default function SignupPage({ onSwitchToLogin }) {
                 className="input-field bg-white"
                 placeholder="your@email.com"
               />
-              <svg
-                className="absolute right-3 top-3 w-5 h-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="absolute right-3 top-3 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -144,14 +131,9 @@ export default function SignupPage({ onSwitchToLogin }) {
               </svg>
             </div>
           </div>
-
+          {/* Password */}
           <div className="mb-4">
-            <label
-              htmlFor="password"
-              className="block text-white font-semibold mb-2"
-            >
-              Password
-            </label>
+            <label htmlFor="password" className="block text-white font-semibold mb-2">Password</label>
             <div className="relative">
               <input
                 id="password"
@@ -167,44 +149,14 @@ export default function SignupPage({ onSwitchToLogin }) {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-3 text-teal-600"
               >
-                {showPassword ? (
-                  <svg
-                    className="w-5 h-5"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                    <path
-                      fillRule="evenodd"
-                      d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                ) : (
-                  <svg
-                    className="w-5 h-5"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
-                      clipRule="evenodd"
-                    />
-                    <path d="M15.171 13.576l1.473 1.473A10.016 10.016 0 0019.542 10c-1.274-4.057-5.064-7-9.542-7a9.948 9.948 0 00-4.512 1.074l1.473 1.473C9.591 4.885 9.787 4.88 10 4.88a6 6 0 016 6c0 .213-.005.409-.034 .602z" />
-                  </svg>
-                )}
+                {/* SVGs for show/hide */}
+                {showPassword ? "🙈" : "👁️"}
               </button>
             </div>
           </div>
-
+          {/* Confirm Password */}
           <div className="mb-6">
-            <label
-              htmlFor="confirmPassword"
-              className="block text-white font-semibold mb-2"
-            >
-              Confirm Password
-            </label>
+            <label htmlFor="confirmPassword" className="block text-white font-semibold mb-2">Confirm Password</label>
             <div className="relative">
               <input
                 id="confirmPassword"
@@ -220,36 +172,13 @@ export default function SignupPage({ onSwitchToLogin }) {
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-3 text-teal-600"
               >
-                {showConfirmPassword ? (
-                  <svg
-                    className="w-5 h-5"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                    <path
-                      fillRule="evenodd"
-                      d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                ) : (
-                  <svg
-                    className="w-5 h-5"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
-                      clipRule="evenodd"
-                    />
-                    <path d="M15.171 13.576l1.473 1.473A10.016 10.016 0 0019.542 10c-1.274-4.057-5.064-7-9.542-7a9.948 9.948 0 00-4.512 1.074l1.473 1.473C9.591 4.885 9.787 4.88 10 4.88a6 6 0 016 6c0 .213-.005.409-.034 .602z" />
-                  </svg>
-                )}
+                {/* SVGs for show/hide */}
+                {showConfirmPassword ? "🙈" : "👁️"}
               </button>
             </div>
           </div>
+          {/* Error display */}
+          {error && <div className="mb-4 text-red-300 text-center">{error}</div>}
 
           <button
             onClick={handleSignup}

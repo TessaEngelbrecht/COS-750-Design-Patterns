@@ -9,7 +9,14 @@ export default async function StudentDashboardPage() {
     redirect("/");
   }
 
+  // Destructure user profile
   const { profile } = user;
+
+  // Add a guard to prevent accessing properties of null
+  if (!profile) {
+    // Optionally, you can return a loading indicator, error message, or redirect
+    return <div>Loading profile...</div>;
+  }
 
   return (
     <StudentDashboard

@@ -3,45 +3,60 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { loginUser } from "@/lib/auth/login";
-
-// Utility to switch to a destination route using the Next.js router
-function switchOnTo(destination: string, router: ReturnType<typeof useRouter>) {
-  router.push(destination);
-}
+import type { FormEvent, ChangeEvent } from "react";
 
 interface LoginPageProps {
   onSwitchToSignup: () => void;
   onSwitchToForgotPassword: () => void;
 }
 
-
 export default function LoginPage({
   onSwitchToSignup,
   onSwitchToForgotPassword,
-}) {
+}: LoginPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"student" | "educator">("student");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
 
     const result = await loginUser(email, password);
 
     if (result.error) {
-      setError(result.error);
-      alert(`Login failed: ${result.error.message || result.error}`);
+      const errorMsg =
+        typeof result.error === "string"
+          ? result.error
+          : result.error.message || "Login failed";
+
+      if (
+        errorMsg.toLowerCase().includes("email") ||
+        errorMsg.toLowerCase().includes("user not found") ||
+        errorMsg.toLowerCase().includes("invalid email")
+      ) {
+        setError(
+          "Email address not found. Please check your email or sign up."
+        );
+      } else if (
+        errorMsg.toLowerCase().includes("password") ||
+        errorMsg.toLowerCase().includes("invalid login credentials")
+      ) {
+        setError(
+          "Incorrect password. Please try again or use 'Forgot Password'."
+        );
+      } else {
+        setError(`Login failed: ${errorMsg}`);
+      }
       return;
     }
 
     const user = result.user;
 
-    if (!user.role) {
-      alert("Login error: No user");
+    if (!user?.role) {
+      setError("Login error: User account not properly configured");
       return;
     }
 
@@ -57,34 +72,6 @@ export default function LoginPage({
       {/* Left Side - Login Form */}
       <div className="w-full md:w-1/2 bg-teal-600 flex flex-col justify-center px-8 py-12">
         <div className="max-w-md mx-auto w-full">
-          <div className="mb-8">
-            <label className="block text-white text-sm font-semibold mb-3">
-              Role
-            </label>
-            <div className="flex gap-4">
-              <button
-                onClick={() => setRole("student")}
-                className={`flex-1 py-2 rounded-lg font-semibold transition-colors ${
-                  role === "student"
-                    ? "bg-white text-teal-600"
-                    : "bg-teal-700 text-white hover:bg-teal-800"
-                }`}
-              >
-                Student
-              </button>
-              <button
-                onClick={() => setRole("educator")}
-                className={`flex-1 py-2 rounded-lg font-semibold transition-colors ${
-                  role === "educator"
-                    ? "bg-white text-teal-600"
-                    : "bg-teal-700 text-white hover:bg-teal-800"
-                }`}
-              >
-                Educator
-              </button>
-            </div>
-          </div>
-
           <div className="mb-4">
             <label
               htmlFor="email"
@@ -97,8 +84,10 @@ export default function LoginPage({
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input-field bg-white"
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                  setEmail(e.target.value)
+                }
+                className="input-field bg-white w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-teal-500"
                 placeholder="your@email.com"
               />
             </div>
@@ -116,13 +105,27 @@ export default function LoginPage({
                 id="password"
                 type={showPassword ? "text" : "password"}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input-field bg-white"
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                  setPassword(e.target.value)
+                }
+                className="input-field bg-white w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-teal-500 pr-10"
                 placeholder="••••••••"
               />
-              {/* Button for show/hide password */}
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-800"
+              >
+                {showPassword ? "👁️" : "👁️‍🗨️"}
+              </button>
             </div>
           </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {error}
+            </div>
+          )}
 
           <div className="mb-6 text-right">
             <button
@@ -137,7 +140,7 @@ export default function LoginPage({
           <button
             type="button"
             onClick={handleLogin}
-            className="w-full btn-primary bg-white text-teal-600 font-bold mb-4 rounded-lg hover:bg-gray-100 hover:shadow focus:outline-none transition cursor-pointer"
+            className="w-full btn-primary bg-white text-teal-600 font-bold py-3 px-4 mb-4 rounded-lg hover:bg-gray-100 hover:shadow focus:outline-none transition cursor-pointer"
             aria-label="Log in"
           >
             LOG IN
@@ -170,13 +173,11 @@ export default function LoginPage({
         <p className="text-gray-600 text-center mb-4">Software Modeling</p>
         <div className="space-y-4">
           <p className="text-gray-700 font-medium">
-            In the following app you as a student will be able to see where you
-            are currently at with your knowledge on the design pattern{" "}
+            In the following app you as a student will be able to see where you are currently at with your knowledge on the design pattern{" "}
             <strong>OBSERVER</strong>.
           </p>
           <p className="text-gray-700 font-medium">
-            You will be able to test yourself with practice quizzes before
-            taking the final exam assessment.
+            You will be able to test yourself with practice quizzes before taking the final exam assessment.
           </p>
         </div>
       </div>
