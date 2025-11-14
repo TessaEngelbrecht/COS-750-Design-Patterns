@@ -41,6 +41,7 @@ export default function StudentDashboard({
   const [selectedPattern, setSelectedPattern] = useState<string | null>(null);
   const [practiceAnswers, setPracticeAnswers] = useState<any[]>([]);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [attemptId, setAttemptId] = useState<string | null>(null);
   const goTo = (page: PageType) => setCurrentPage(page);
 // ---------------------------
   // NEW: Check if reflection already completed
@@ -98,23 +99,24 @@ export default function StudentDashboard({
         );
 
       case "practice":
-        return (
-          <PracticePage
-            patternId={selectedPattern!}
-            onNext={(answers) => {
-              setPracticeAnswers(answers);
-              goTo("practice-feedback");
-            }}
-          />
-        );
+          return (
+            <PracticePage
+              patternId={selectedPattern!}
+              onNext={(attemptId) => {
+                setAttemptId(attemptId);
+                goTo("practice-feedback");
+              }}
+            />
+          );
 
       case "practice-feedback":
-        return (
-          <PracticeFeedbackPage
-            practiceAnswers={practiceAnswers}
-            onNext={() => goTo("uml-builder")}
-          />
-        );
+          return (
+            <PracticeFeedbackPage
+              attemptId={attemptId!}     // <-- The feedback page fetches everything itself
+              onNext={() => goTo("uml-builder")}
+              onRetake={() => goTo("practice")}
+            />
+          );
 
       case "uml-builder":
         return (
