@@ -15,170 +15,167 @@ import { StudentNavigation } from "@/components/dashboards/student-navigation";
 import { StudentHeader } from "./student-header";
 
 type PageType =
-  | "pattern-selection"
-  | "self-reflection"
-  | "instructions"
-  | "practice"
-  | "practice-feedback"
-  | "uml-builder"
-  | "cheat-sheet"
-  | "quiz"
-  | "results"
-  | "feedback";
+| "pattern-selection"
+| "self-reflection"
+| "instructions"
+| "practice"
+| "practice-feedback"
+| "uml-builder"
+| "cheat-sheet"
+| "quiz"
+| "results"
+| "feedback";
 
 interface StudentDashboard {
-  userId: string;
-  userName: string;
-  role: string;
+userId: string;
+userName: string;
+role: string;
 }
 
 export default function StudentDashboard({
-  userId,
-  userName,
-  role,
+userId,
+userName,
+role,
 }: StudentDashboard) {
-  const [currentPage, setCurrentPage] = useState<PageType>("pattern-selection");
-  const [selectedPattern, setSelectedPattern] = useState<string | null>(null);
-  const [practiceAnswers, setPracticeAnswers] = useState<any[]>([]);
-  const [loadingProfile, setLoadingProfile] = useState(false);
-  const goTo = (page: PageType) => setCurrentPage(page);
-// ---------------------------
-  // NEW: Check if reflection already completed
-  // ---------------------------
-  const evaluateReflectionStatus = async (patternId: string) => {
-    setLoadingProfile(true);
+const [currentPage, setCurrentPage] = useState<PageType>("pattern-selection");
+const [selectedPattern, setSelectedPattern] = useState<string | null>(null);
+const [practiceAnswers, setPracticeAnswers] = useState<any[]>([]);
+const [loadingProfile, setLoadingProfile] = useState(false);
 
-    const res = await fetch(`/api/pattern-profile/${patternId}`);
-    const data = await res.json();
+const goTo = (page: PageType) => setCurrentPage(page);
 
-    const hasDoneReflection =
-      data?.profile?.has_completed_reflection === true;
+// NEW: Handler to go back to pattern selection
+const handleBackToPatternSelection = () => {
+setCurrentPage("pattern-selection");
+setSelectedPattern(null);
+setPracticeAnswers([]);
+};
 
-    setLoadingProfile(false);
+const evaluateReflectionStatus = async (patternId: string) => {
+setLoadingProfile(true);
+const res = await fetch(`/api/pattern-profile/${patternId}`);
+const data = await res.json();
 
-    if (hasDoneReflection) {
-      goTo("instructions");
-    } else {
-      goTo("self-reflection");
+const hasDoneReflection = data?.profile?.has_completed_reflection === true;
+
+setLoadingProfile(false);
+
+if (hasDoneReflection) {
+  goTo("instructions");
+} else {
+  goTo("self-reflection");
+}
+};
+
+const renderPage = () => {
+switch (currentPage) {
+case "pattern-selection":
+return (
+<PatternSelectionPage
+onSelect={(patternId) => {
+setSelectedPattern(patternId);
+evaluateReflectionStatus(patternId);
+}}
+/>
+);
+  case "self-reflection":
+    if (!selectedPattern) {
+      console.warn("⏳ Waiting for patternId to hydrate...");
+      return <div className="p-6">Loading pattern…</div>;
     }
-  };
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case "pattern-selection":
-        return (
-          <PatternSelectionPage
-            onSelect={(patternId) => {
-              setSelectedPattern(patternId);
-              evaluateReflectionStatus(patternId);
-            }}
-          />
-        );
+    return (
+      <SelfReflectionPage
+        patternId={selectedPattern}
+        userId={userId}
+        onNext={() => goTo("instructions")}
+      />
+    );
 
-      case "self-reflection":
-        if (!selectedPattern) {
-          console.warn("⏳ Waiting for patternId to hydrate...");
-          return <div className="p-6">Loading pattern…</div>;
-        }
+  case "instructions":
+    return (
+      <InstructionsPage
+        onNext={() => goTo("practice")}
+      />
+    );
 
-        return (
-          <SelfReflectionPage
-            patternId={selectedPattern}
-            userId={userId}
-            onNext={() => goTo("instructions")}
-          />
-        );
+  case "practice":
+    return (
+      <PracticePage
+        patternId={selectedPattern!}
+        onNext={(answers) => {
+          setPracticeAnswers(answers);
+          goTo("practice-feedback");
+        }}
+      />
+    );
 
-      case "instructions":
-        return (
-          <InstructionsPage
-            // patternId={selectedPattern!}
-            onNext={() => goTo("practice")}
-          />
-        );
+  case "practice-feedback":
+    return (
+      <PracticeFeedbackPage
+        practiceAnswers={practiceAnswers}
+        onNext={() => goTo("uml-builder")}
+      />
+    );
 
-      case "practice":
-        return (
-          <PracticePage
-            patternId={selectedPattern!}
-            onNext={(answers) => {
-              setPracticeAnswers(answers);
-              goTo("practice-feedback");
-            }}
-          />
-        );
+  case "uml-builder":
+    return (
+      <UMLBuilderPage
+        onNext={() => goTo("cheat-sheet")}
+      />
+    );
 
-      case "practice-feedback":
-        return (
-          <PracticeFeedbackPage
-            practiceAnswers={practiceAnswers}
-            onNext={() => goTo("uml-builder")}
-          />
-        );
+  case "cheat-sheet":
+    return (
+      <CheatSheetPage
+        onNext={() => goTo("quiz")}
+      />
+    );
 
-      case "uml-builder":
-        return (
-          <UMLBuilderPage
-            // patternId={selectedPattern!}
-            onNext={() => goTo("cheat-sheet")}
-          />
-        );
+  case "quiz":
+    return (
+      <QuizPage
+        user={userId}
+        onNext={() => goTo("results")}
+      />
+    );
 
-      case "cheat-sheet":
-        return (
-          <CheatSheetPage
-            // patternId={selectedPattern!}
-            onNext={() => goTo("quiz")}
-          />
-        );
+  case "results":
+    return <ResultsPage onNext={() => goTo("feedback")} />;
 
-      case "quiz":
-        return (
-          <QuizPage
-            // patternId={selectedPattern!}
-            // userId={userId}
-            user = {userId}
-            onNext={() => goTo("results")}
-          />
-        );
+  case "feedback":
+    return <FeedbackPage onNext={() => goTo("pattern-selection")} />;
+}
+};
 
-      case "results":
-        return <ResultsPage onNext={() => goTo("feedback")} />;
+const showNav = ![
+"pattern-selection",
+"self-reflection",
+"instructions",
+"feedback",
+"quiz",
+].includes(currentPage);
 
-      case "feedback":
-        return <FeedbackPage onNext={() => goTo("pattern-selection")} />;
-    }
-  };
-
-  // Only show navigation for main learning steps
-  const showNav = ![
-    "pattern-selection",
-    "self-reflection",
-    "instructions",
-    "feedback",
-    "quiz",
-  ].includes(currentPage);
-
-  return (
-    <div className="min-h-screen bg-background">
-        <StudentHeader userName={userName}/>
-        {showNav && (
-          <StudentNavigation
-            currentPage={
-              currentPage as
-                | "practice"
-                | "uml-builder"
-                | "cheat-sheet"
-                | "quiz"
-                | "results"
-                | "feedback"
-            }
-            onNavigate={setCurrentPage}
-          />
-        )}
-      <main className="flex-1">
-        {renderPage()}
-      </main>
-    </div>
-  );
+return (
+<div className="min-h-screen bg-background">
+<StudentHeader userName={userName} currentPage={currentPage} onBackToPatternSelection={handleBackToPatternSelection} />
+{showNav && (
+<StudentNavigation
+currentPage={
+currentPage as
+| "practice"
+| "uml-builder"
+| "cheat-sheet"
+| "quiz"
+| "results"
+| "feedback"
+}
+onNavigate={setCurrentPage}
+/>
+)}
+<main className="flex-1">
+{renderPage()}
+</main>
+</div>
+);
 }
