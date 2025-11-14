@@ -1,22 +1,25 @@
-  // /lib/auth/getUser.ts
-  import { createServerSupabase } from "@/lib/supabase/server";
+// /lib/auth/getUser.ts
+import { createServerSupabase } from "@/lib/supabase/server";
 
-  export async function getUser() {
-    const supabase = await createServerSupabase();
+export async function getUser() {
+  const supabase = await createServerSupabase();
 
-    const {
-      data: { session },
-      error,
-    } = await supabase.auth.getSession();
+  // ✔️ This validates the JWT with Supabase Auth
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-    if (error || !session?.user) return null;
+  if (userError || !user) return null;
 
-    // also fetch user profile info from your "users" table
-    const { data: profile } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", session.user.id)
-      .single();
+  // ✔️ Database profile lookup (trusted RLS-protected table)
+  const { data: profile, error: profileError } = await supabase
+    .from("users")
+    .select("*")
+    .eq("auth_id", user.id) // Important: use auth_id field
+    .single();
 
-    return { authUser: session.user, profile };
-  }
+  if (profileError) return null;
+
+  return { authUser: user, profile };
+}

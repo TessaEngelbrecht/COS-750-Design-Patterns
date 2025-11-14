@@ -18,4 +18,4 @@ export default async function StudentDashboardPage() {
       role={profile.role}
     />
   );
-}
+} 

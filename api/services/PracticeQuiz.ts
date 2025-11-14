@@ -1,27 +1,54 @@
 // api/services/PracticeQuiz.ts
 import { supabase } from "@/lib/supebase";
 
+// export interface PracticeQuestion {
+//   question_id: number;
+//   section: string;
+//   bloom_level: string;
+//   difficulty_level: string;
+//   question_format: string;
+//   question_text: string;
+//   question_data: any;
+//   correct_answer: {
+//     answer?: string; 
+//     answers?: string[]; 
+//     blanks?: Array<{
+//       position: number;
+//       answers: string[];
+//     }>;
+//     reason: string;
+//   };
+//   points: number;
+//   is_active: boolean;
+// }
 export interface PracticeQuestion {
-  question_id: number;
-  section: string;
-  bloom_level: string;
-  difficulty_level: string;
-  question_format: string;
+  question_id: string;
+  question_format: "multiple-choice" | "select-multiple" | "fill-in-blank" | "identify-error";
+
+  // From question_content table
   question_text: string;
   question_data: any;
-  correct_answer: {
-    answer?: string; 
-    answers?: string[]; 
-    blanks?: Array<{
-      position: number;
-      answers: string[];
-    }>;
-    reason: string;
-  };
+  correct_answer: any;
   points: number;
-  is_active: boolean;
-}
 
+  // From joins
+  bloom_id: string;
+  bloom_level: string;
+
+  difficulty_id: string;
+  difficulty: any;
+
+  section_id: string;
+  section: string;
+
+  topics: {
+    topic_id: string;
+    topic: string;
+  }[];
+
+  // Engine-generated score
+  score: number;
+}
 export interface GetPracticeQuestionsParams {
   limit?: number;
   onlyActive?: boolean;
