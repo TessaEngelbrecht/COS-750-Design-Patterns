@@ -169,7 +169,7 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
     {
       number: 1,
       title: "Practice",
-      description: "Pre-quiz to assess knowledge before the final quiz.",
+      description: "Practice-quiz to assess knowledge and improve before the final quiz.",
     },
     {
       number: 2,
@@ -178,16 +178,11 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
     },
     {
       number: 3,
-      title: "Cheat Sheet",
-      description: "Reference guide with key concepts and examples.",
-    },
-    {
-      number: 4,
       title: "Quiz",
       description: "Final assessment covering all Observer Pattern concepts.",
     },
     {
-      number: 5,
+      number: 4,
       title: "Results",
       description: "Detailed analytics and personalized feedback.",
     },

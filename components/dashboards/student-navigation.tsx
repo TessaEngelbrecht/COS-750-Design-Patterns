@@ -3,7 +3,7 @@
 type PageType =
   | "practice"
   | "uml-builder"
-  | "cheat-sheet"
+  // | "cheat-sheet"
   | "quiz"
   | "results"
   | "feedback";
@@ -17,9 +17,9 @@ export function StudentNavigation({ currentPage, onNavigate }: StudentNavigation
   const pages: Array<{ id: PageType; label: string; number: number }> = [
     { id: "practice", label: "Practice", number: 1 },
     { id: "uml-builder", label: "UML Builder", number: 2 },
-    { id: "cheat-sheet", label: "Cheat Sheet", number: 3 },
-    { id: "quiz", label: "Quiz", number: 4 },
-    { id: "results", label: "Results", number: 5 },
+    // { id: "cheat-sheet", label: "Cheat Sheet", number: 3 },
+    { id: "quiz", label: "Quiz", number: 3 },
+    { id: "results", label: "Results", number: 4 },
   ];
 
   return (

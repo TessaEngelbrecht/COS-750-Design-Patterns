@@ -41,35 +41,35 @@ type Graded =
 
 type Q =
   | {
-      id: QId;
-      kind: "fill-in-blank";
-      stem: string;
-      blank: string;
-      acceptable: string[];
-      points: number | null;
-    }
+    id: QId;
+    kind: "fill-in-blank";
+    stem: string;
+    blank: string;
+    acceptable: string[];
+    points: number | null;
+  }
   | {
-      id: QId;
-      kind: "multiple-choice";
-      stem: string;
-      options: NormalizedOption[];
-      correct: string;
-      code: string;
-      points: number | null;
-    }
+    id: QId;
+    kind: "multiple-choice";
+    stem: string;
+    options: NormalizedOption[];
+    correct: string;
+    code: string;
+    points: number | null;
+  }
   | {
-      id: QId;
-      kind: "code-fix";
-      stem: string;
-      code: string;
-      points: number | null;
-    }
+    id: QId;
+    kind: "code-fix";
+    stem: string;
+    code: string;
+    points: number | null;
+  }
   | {
-      id: QId;
-      kind: "unsupported";
-      stem: string;
-      points: number | null;
-    };
+    id: QId;
+    kind: "unsupported";
+    stem: string;
+    points: number | null;
+  };
 
 /* ============================== Utils ============================== */
 
@@ -260,10 +260,10 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
           correct,
           code: String(
             (q as any).code_snippet ??
-              (qd as any)?.code_snippet ??
-              (qd as any)?.code ??
-              (q as any).code ??
-              ""
+            (qd as any)?.code_snippet ??
+            (qd as any)?.code ??
+            (q as any).code ??
+            ""
           ),
           points,
         };
@@ -282,10 +282,10 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
             correct,
             code: String(
               (q as any).code_snippet ??
-                jd?.code_snippet ??
-                jd?.code ??
-                (q as any).code ??
-                ""
+              jd?.code_snippet ??
+              jd?.code ??
+              (q as any).code ??
+              ""
             ),
             points,
           };
@@ -296,10 +296,10 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
           stem: toStringSafe(q.question_text),
           code: String(
             (q as any).code_snippet ??
-              jd?.code_snippet ??
-              jd?.code ??
-              (q as any).code ??
-              ""
+            jd?.code_snippet ??
+            jd?.code ??
+            (q as any).code ??
+            ""
           ),
           points,
         };
@@ -326,14 +326,14 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
 
   async function getOrCreateAttempt(student_id: string) {
     const { data: quizTypeRow, error: typeErr } = await supabase
-        .from("quiz_type")
-        .select("id")
-        .eq("quiz_type", "Final Quiz")
-        .limit(1)
-        .maybeSingle();
-      if (typeErr) throw typeErr;
-      if (!quizTypeRow?.id) return { state: "none" };
-      const quizTypeId = quizTypeRow.id;
+      .from("quiz_type")
+      .select("id")
+      .eq("quiz_type", "Final Quiz")
+      .limit(1)
+      .maybeSingle();
+    if (typeErr) throw typeErr;
+    if (!quizTypeRow?.id) return { state: "none" };
+    const quizTypeId = quizTypeRow.id;
 
     const { data: existing, error: findErr } = await supabase
       .from("quiz_attempt")
@@ -722,8 +722,47 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
                   </DialogTitle>
                 </DialogHeader>
 
-                <div className="flex-1 min-h-0 overflow-y-auto">
-                  <CheatSheetContent onClose={() => setCheatOpen(false)} />
+                <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-2 pb-3">
+                  <h2 className="font-bold text-teal-700">Introduction</h2>
+                  <span>
+                    The Observer Pattern creates a one-to-many link between a Subject and its Observers. When the Subject changes state, all registered Observers are automatically notified and updated. It allows dynamic attach/detach and keeps components loosely coupled.
+                  </span>
+
+                  <h2 className="font-bold text-teal-700 mt-4">Intent</h2>
+                  <ul className="list-disc ml-6 space-y-1">
+                    <li><strong>Name:</strong> Observer</li>
+                    <li><strong>Classification:</strong> Behavioural Pattern</li>
+                    <li><strong>Strategy:</strong> Delegation (Object)
+                    </li>
+                    <li>
+                      <strong>Intent:</strong> Define a one-to-many dependency so that when
+                      one object changes state, all its dependents are notified and updated
+                      automatically.
+                    </li>
+                  </ul>
+
+                  <h2 className="font-bold text-teal-700 mt-4">Participants</h2>
+                  <ul className="list-disc ml-6 space-y-1">
+                    <li><strong>Subject</strong> – interface for attaching and detaching observers.</li>
+                    <li><strong>ConcreteSubject</strong> – implements storage and notifies observers on state change.</li>
+                    <li><strong>Observer</strong> – defines an <code>update()</code> interface.</li>
+                    <li><strong>ConcreteObserver</strong> – keeps a reference to the subject and updates its own state
+                    </li>
+                  </ul>
+
+                  <h2 className="font-bold text-teal-700 mt-4">Structure</h2>
+
+                  <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
+                    {`interface Subject {
+    attach(o: Observer): void;
+    detach(o: Observer): void;
+    notify(): void;
+}
+
+interface Observer {
+    update(subject: Subject): void;
+}`}
+                  </pre>
                 </div>
               </DialogContent>
             </Dialog>
@@ -980,7 +1019,7 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
         </div>
       </div>
 
-      <div className="sticky bottom-0 left-0 right-0 border-t border-slate-200 bg-white backdrop-blur">
+     <div className="sticky bottom-0 left-0 right-0 border-t border-slate-200 bg-white backdrop-blur">
         <div className="mx-auto flex max-w-5xl justify-end gap-3 px-4 py-3 sm:px-6">
           <Button
             onClick={handleContinue}
