@@ -109,32 +109,32 @@
 //   )
 // }
 
-"use client"
+"use client";
 
-import { useState, useRef } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Play, Menu, X } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import { useState, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Play, Menu, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-import IntroductionSection from "./lesson/IntroductionSection"
-import IdentificationSection from "./lesson/IdentificationSection"
-import StructureSection from "./lesson/StructureSection"
-import ProblemSection from "./lesson/ProblemSection"
-import ParticipantsSection from "./lesson/ParticipantsSection"
-import ExplanationsSection from "./lesson/ExplanationsSection"
-import ExampleSection from "./lesson/ExampleSection"
-import ExercisesSection from "./lesson/ExercisesSection"
-import { LessonPageWithTTS } from "@/components/tts/LessonPageWithTTS"
+import IntroductionSection from "./lesson/IntroductionSection";
+import IdentificationSection from "./lesson/IdentificationSection";
+import StructureSection from "./lesson/StructureSection";
+import ProblemSection from "./lesson/ProblemSection";
+import ParticipantsSection from "./lesson/ParticipantsSection";
+import ExplanationsSection from "./lesson/ExplanationsSection";
+import ExampleSection from "./lesson/ExampleSection";
+import ExercisesSection from "./lesson/ExercisesSection";
+import { LessonPageWithTTS } from "@/components/tts/LessonPageWithTTS";
 
 export function InstructionsPage({ onNext }: { onNext: () => void }) {
   // Match this to your real header height (px). 64px is a common appbar size.
-  const HEADER_H_PX = 70
+  const HEADER_H_PX = 70;
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [activeMainTab, setActiveMainTab] = useState("Lesson") // default to Lesson if you prefer
-  const [activeLessonTab, setActiveLessonTab] = useState("Introduction")
-  const [showAllLessonContent, setShowAllLessonContent] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [activeMainTab, setActiveMainTab] = useState("Lesson"); // default to Lesson if you prefer
+  const [activeLessonTab, setActiveLessonTab] = useState("Introduction");
+  const [showAllLessonContent, setShowAllLessonContent] = useState(false);
 
   const sectionRefs = {
     Introduction: useRef<HTMLDivElement>(null),
@@ -145,7 +145,7 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
     Explanations: useRef<HTMLDivElement>(null),
     Example: useRef<HTMLDivElement>(null),
     Exercises: useRef<HTMLDivElement>(null),
-  }
+  };
 
   const lessonTabs = [
     "Introduction",
@@ -156,53 +156,88 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
     "Explanations",
     "Example",
     "Exercises",
-  ]
+  ];
 
   const scrollToSection = (section: string) => {
-    const ref = sectionRefs[section as keyof typeof sectionRefs]
-    if (ref?.current) ref.current.scrollIntoView({ behavior: "smooth", block: "start" })
-    setIsSidebarOpen(false)
-  }
+    const ref = sectionRefs[section as keyof typeof sectionRefs];
+    if (ref?.current)
+      ref.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    setIsSidebarOpen(false);
+  };
 
   const instructions = [
-    { number: 1, title: "Practice", description: "Pre-quiz to assess knowledge before the final quiz." },
-    { number: 2, title: "UML Builder", description: "Interactive tool to build and visualize UML diagrams." },
-    { number: 3, title: "Cheat Sheet", description: "Reference guide with key concepts and examples." },
-    { number: 4, title: "Quiz", description: "Final assessment covering all Observer Pattern concepts." },
-    { number: 5, title: "Results", description: "Detailed analytics and personalized feedback." },
-  ]
+    {
+      number: 1,
+      title: "Practice",
+      description: "Pre-quiz to assess knowledge before the final quiz.",
+    },
+    {
+      number: 2,
+      title: "UML Builder",
+      description: "Interactive tool to build and visualize UML diagrams.",
+    },
+    {
+      number: 3,
+      title: "Cheat Sheet",
+      description: "Reference guide with key concepts and examples.",
+    },
+    {
+      number: 4,
+      title: "Quiz",
+      description: "Final assessment covering all Observer Pattern concepts.",
+    },
+    {
+      number: 5,
+      title: "Results",
+      description: "Detailed analytics and personalized feedback.",
+    },
+  ];
 
   const renderInstructionalSection = () => (
     <div className="space-y-4">
       {instructions.map((item) => (
-        <Card key={item.number} className="p-6 border-2 border-teal-700 bg-blue-50 hover:shadow-lg transition">
+        <Card
+          key={item.number}
+          className="p-6 border-2 border-teal-700 bg-blue-50 hover:shadow-lg transition"
+        >
           <div className="flex gap-4 items-start">
             <div className="w-12 h-12 rounded-full bg-teal-700 text-white flex items-center justify-center font-bold text-lg flex-shrink-0">
               {item.number}
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-1 break-words">{item.title}</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-1 break-words">
+                {item.title}
+              </h3>
               <p className="text-gray-700">{item.description}</p>
             </div>
           </div>
         </Card>
       ))}
     </div>
-  )
+  );
 
   const renderLessonSection = () => {
     switch (activeLessonTab) {
-      case "Introduction": return <IntroductionSection />
-      case "Identification": return <IdentificationSection />
-      case "Structure": return <StructureSection />
-      case "Problem": return <ProblemSection />
-      case "Participants": return <ParticipantsSection />
-      case "Explanations": return <ExplanationsSection />
-      case "Example": return <ExampleSection />
-      case "Exercises": return <ExercisesSection />
-      default: return <div>Select a lesson section.</div>
+      case "Introduction":
+        return <IntroductionSection />;
+      case "Identification":
+        return <IdentificationSection />;
+      case "Structure":
+        return <StructureSection />;
+      case "Problem":
+        return <ProblemSection />;
+      case "Participants":
+        return <ParticipantsSection />;
+      case "Explanations":
+        return <ExplanationsSection />;
+      case "Example":
+        return <ExampleSection />;
+      case "Exercises":
+        return <ExercisesSection />;
+      default:
+        return <div>Select a lesson section.</div>;
     }
-  }
+  };
 
   const renderAllLessonSections = () => (
     <div className="space-y-10">
@@ -216,24 +251,33 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
           >
             {(() => {
               switch (section) {
-                case "Introduction": return <IntroductionSection />
-                case "Identification": return <IdentificationSection />
-                case "Structure": return <StructureSection />
-                case "Problem": return <ProblemSection />
-                case "Participants": return <ParticipantsSection />
-                case "Explanations": return <ExplanationsSection />
-                case "Example": return <ExampleSection />
-                case "Exercises": return <ExercisesSection />
-                default: return null
+                case "Introduction":
+                  return <IntroductionSection />;
+                case "Identification":
+                  return <IdentificationSection />;
+                case "Structure":
+                  return <StructureSection />;
+                case "Problem":
+                  return <ProblemSection />;
+                case "Participants":
+                  return <ParticipantsSection />;
+                case "Explanations":
+                  return <ExplanationsSection />;
+                case "Example":
+                  return <ExampleSection />;
+                case "Exercises":
+                  return <ExercisesSection />;
+                default:
+                  return null;
               }
             })()}
           </div>
         ))}
       </LessonPageWithTTS>
     </div>
-  )
+  );
 
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" })
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
   return (
     // Inject header height as a CSS var used below
@@ -277,7 +321,9 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
                 <button
                   onClick={() => setShowAllLessonContent(false)}
                   className={`flex-1 py-1 ${
-                    !showAllLessonContent ? "bg-gray-900 text-white" : "hover:bg-teal-500 text-gray-200"
+                    !showAllLessonContent
+                      ? "bg-gray-900 text-white"
+                      : "hover:bg-teal-500 text-gray-200"
                   }`}
                 >
                   Sub-Tabs
@@ -285,7 +331,9 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
                 <button
                   onClick={() => setShowAllLessonContent(true)}
                   className={`flex-1 py-1 ${
-                    showAllLessonContent ? "bg-gray-900 text-white" : "hover:bg-teal-500 text-gray-200"
+                    showAllLessonContent
+                      ? "bg-gray-900 text-white"
+                      : "hover:bg-teal-500 text-gray-200"
                   }`}
                 >
                   Full Page
@@ -293,25 +341,26 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
               </div>
             )}
           </div>
-
           {/* Nav list */}
           <div className="flex-1 overflow-y-auto p-4 space-y-2 text-sm">
             {(activeMainTab === "Lesson" ? lessonTabs : []).map((section) => (
               <button
                 key={section}
                 onClick={() => {
-                  setActiveLessonTab(section)
-                  if (activeMainTab === "Lesson" && showAllLessonContent) scrollToSection(section)
+                  setActiveLessonTab(section);
+                  if (activeMainTab === "Lesson" && showAllLessonContent)
+                    scrollToSection(section);
                 }}
                 className={`block w-full text-left py-2 px-3 rounded-md font-medium transition ${
-                  activeLessonTab === section ? "bg-gray-800 text-white" : "bg-teal-600 hover:bg-teal-500"
+                  activeLessonTab === section
+                    ? "bg-gray-800 text-white"
+                    : "bg-teal-600 hover:bg-teal-500"
                 }`}
               >
                 {section}
               </button>
             ))}
           </div>
-
           {/* <div className="p-4 border-t border-teal-600 flex flex-col items-center">
             <div className="w-14 h-14 border-4 border-white rounded-full flex items-center justify-center hover:bg-teal-600 cursor-pointer transition">
               <Play className="w-8 h-8 text-white fill-white" />
@@ -324,8 +373,15 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
         <div className="md:hidden fixed inset-x-0 top-[var(--app-header-h)] z-40 bg-teal-700/95 backdrop-blur-sm">
           <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
             <h2 className="text-white font-semibold">Lesson Navigation</h2>
-            <button onClick={() => setIsSidebarOpen(v => !v)} className="text-white">
-              {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            <button
+              onClick={() => setIsSidebarOpen((v) => !v)}
+              className="text-white"
+            >
+              {isSidebarOpen ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <Menu className="w-6 h-6" />
+              )}
             </button>
           </div>
         </div>
@@ -347,12 +403,15 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
                 <button
                   key={section}
                   onClick={() => {
-                    setActiveLessonTab(section)
-                    if (activeMainTab === "Lesson" && showAllLessonContent) scrollToSection(section)
-                    setIsSidebarOpen(false)
+                    setActiveLessonTab(section);
+                    if (activeMainTab === "Lesson" && showAllLessonContent)
+                      scrollToSection(section);
+                    setIsSidebarOpen(false);
                   }}
                   className={`block w-full text-left py-2 px-3 rounded-md font-medium transition ${
-                    activeLessonTab === section ? "bg-gray-800 text-white" : "bg-teal-600 hover:bg-teal-500"
+                    activeLessonTab === section
+                      ? "bg-gray-800 text-white"
+                      : "bg-teal-600 hover:bg-teal-500"
                   }`}
                 >
                   {section}
@@ -389,13 +448,20 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
         >
           <div className="max-w-5xl mx-auto">
             <h1 className="text-3xl font-bold text-teal-700 mb-6 break-words">
-              {activeMainTab === "Lesson" ? "Lesson Content" : "Instructional Overview"}
+              {activeMainTab === "Lesson"
+                ? "Lesson Content"
+                : "Instructional Overview"}
             </h1>
 
             <AnimatePresence mode="wait">
               {activeMainTab === "Lesson" ? (
                 showAllLessonContent ? (
-                  <motion.div key="all-lesson" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <motion.div
+                    key="all-lesson"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
                     {renderAllLessonSections()}
                   </motion.div>
                 ) : (
@@ -430,10 +496,10 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
                 <div className="flex justify-end w-full">
                   <Button
                     onClick={() => {
-                      setActiveMainTab("Lesson")
-                      setActiveLessonTab("Introduction")
-                      setShowAllLessonContent(false)
-                      scrollToTop()
+                      setActiveMainTab("Lesson");
+                      setActiveLessonTab("Introduction");
+                      setShowAllLessonContent(false);
+                      scrollToTop();
                     }}
                     className="px-8 py-3 bg-teal-700 text-white hover:bg-teal-800 rounded-full font-bold text-lg"
                   >
@@ -444,8 +510,8 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
                 <div className="flex justify-end w-full">
                   <Button
                     onClick={() => {
-                      onNext()
-                      scrollToTop()
+                      onNext();
+                      scrollToTop();
                     }}
                     className="px-8 py-3 bg-teal-700 text-white hover:bg-teal-800 rounded-full font-bold text-lg"
                   >
@@ -456,10 +522,10 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
                 <>
                   <Button
                     onClick={() => {
-                      const i = lessonTabs.indexOf(activeLessonTab)
+                      const i = lessonTabs.indexOf(activeLessonTab);
                       if (i > 0) {
-                        setActiveLessonTab(lessonTabs[i - 1])
-                        scrollToTop()
+                        setActiveLessonTab(lessonTabs[i - 1]);
+                        scrollToTop();
                       }
                     }}
                     disabled={lessonTabs.indexOf(activeLessonTab) === 0}
@@ -469,17 +535,19 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
                   </Button>
                   <Button
                     onClick={() => {
-                      const i = lessonTabs.indexOf(activeLessonTab)
+                      const i = lessonTabs.indexOf(activeLessonTab);
                       if (i < lessonTabs.length - 1) {
-                        setActiveLessonTab(lessonTabs[i + 1])
-                        scrollToTop()
+                        setActiveLessonTab(lessonTabs[i + 1]);
+                        scrollToTop();
                       } else {
-                        onNext()
+                        onNext();
                       }
                     }}
                     className="px-8 py-3 bg-teal-700 text-white hover:bg-teal-800 rounded-full font-bold text-lg"
                   >
-                    {activeLessonTab === lessonTabs[lessonTabs.length - 1] ? "Start Quiz" : "Next"}
+                    {activeLessonTab === lessonTabs[lessonTabs.length - 1]
+                      ? "Start Quiz"
+                      : "Next"}
                   </Button>
                 </>
               )}
@@ -488,5 +556,5 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
         </main>
       </div>
     </div>
-  )
+  );
 }
