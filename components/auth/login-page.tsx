@@ -1,9 +1,8 @@
 "use client";
 
-import type React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../lib/supebase";
+import { loginUser } from "@/lib/auth/login";
 
 // Utility to switch to a destination route using the Next.js router
 function switchOnTo(destination: string, router: ReturnType<typeof useRouter>) {
@@ -15,67 +14,41 @@ interface LoginPageProps {
   onSwitchToForgotPassword: () => void;
 }
 
+
 export default function LoginPage({
   onSwitchToSignup,
   onSwitchToForgotPassword,
-}: LoginPageProps) {
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"student" | "educator">("student");
+  const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
-  // Redirects are handled inside this event handler
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
 
-    // Sign in with Supabase
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    console.log("Login attempt for email:", email, "role:", role);
+    const result = await loginUser(email, password);
 
-    if (error) {
-      console.error("Failed to sign in:", error.message);
+    if (result.error) {
+      setError(result.error);
+      alert(`Login failed: ${result.error.message || result.error}`);
       return;
     }
 
-    if (!data.user) {
-      console.error("No user returned from sign-in");
+    const user = result.user;
+
+    if (!user.role) {
+      alert("Login error: No user");
       return;
     }
 
-    // Fetch user profile info including has_seen_self_reflection and role
-    const { data: profile, error: profileError } = await supabase
-      .from("users")
-      .select("has_seen_self_reflection, role")
-      .eq("id", data.user.id)
-      .single();
-
-    if (profileError) {
-      console.error("Failed to get user profile:", profileError.message);
-      return;
-    }
-
-    // Store user in localStorage if needed
-    localStorage.setItem(
-      "user",
-      JSON.stringify({
-        id: data.user.id,
-        email: data.user.email,
-        role: profile.role,
-        has_seen_self_reflection: profile.has_seen_self_reflection,
-      })
-    );
-
-    // Redirect logic
-    if (profile.role === "student") {
-      switchOnTo("/student", router);
-    } else if (profile.role === "educator") {
-      switchOnTo("/educator/dashboard", router);
+    if (user.role === "educator") {
+      router.push("/educator/dashboard");
     } else {
-      switchOnTo("/student", router);
+      router.push("/student");
     }
   };
 

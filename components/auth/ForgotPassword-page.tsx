@@ -1,35 +1,37 @@
-"use client"
+"use client";
 
-import Image from "next/image"
-import { useState } from "react"
-import { supabase } from "../../lib/supebase"
+import Image from "next/image";
+import { useState } from "react";
 
 interface ForgotPasswordProps {
   onBackToLogin: () => void;
 }
 
-const ForgotPassword = ({ onBackToLogin }: ForgotPasswordProps) => {
-  const [email, setEmail] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState("")
+export default function ForgotPassword({ onBackToLogin }: ForgotPasswordProps) {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
   const handleReset = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setMessage("")
-    // Explicitly set the redirect URL for password reset
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "http://localhost:3000/#type=recovery&access_token=test"
-    })
-    if (error) {
-      setMessage("Error: " + error.message)
-    } else {
-      setMessage("Password reset link sent! Please check your email.")
-    }
-    setLoading(false)
-  }
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
 
-  
+    const res = await fetch("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+      setMessage("Error: " + data.error);
+    } else {
+      setMessage("Password reset link sent! Check your email.");
+    }
+
+    setLoading(false);
+  };
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -102,5 +104,3 @@ const ForgotPassword = ({ onBackToLogin }: ForgotPasswordProps) => {
     </div>
   )
 }
-
-export default ForgotPassword

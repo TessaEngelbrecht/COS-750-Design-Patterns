@@ -1,174 +1,146 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supebase";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 interface SelfReflectionPageProps {
+  patternId: string;
+  userId: string;
   onNext: () => void;
 }
 
-export default function SelfReflectionPage({ onNext }: SelfReflectionPageProps) {
-  const [cplusplus, setCplusplus] = useState<string>("");
-  const [observerPattern, setObserverPattern] = useState<string>("");
-  const [classes, setClasses] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+export default function SelfReflectionPage({
+  patternId,
+  userId,
+  onNext,
+}: SelfReflectionPageProps) {
+  const [formId, setFormId] = useState<string | null>(null);
+  const [questions, setQuestions] = useState<
+    Array<{
+      id: string; // question_instance_id
+      text: string;
+      scaleOptions: any[];
+    }>
+  >([]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
-  const emojiOptions = [
-    { value: "very-low", emoji: "😢", label: "Very Low" },
-    { value: "low", emoji: "😞", label: "Low" },
-    { value: "nervous", emoji: "😟", label: "Nervous" },
-    { value: "neutral", emoji: "😐", label: "Neutral" },
-    { value: "good", emoji: "🙂", label: "Good" },
-    { value: "very-good", emoji: "😄", label: "Very Good" },
-  ];
-
-  // Safely fetch user from localStorage
-  const getUserFromLocalStorage = (): { id: string } | null => {
-    try {
-      const rawUser = localStorage.getItem("user");
-      if (!rawUser) return null;
-      const user = JSON.parse(rawUser);
-      if (!user?.id || typeof user.id !== "string") return null;
-      return user as { id: string };
-    } catch {
-      return null;
-    }
-  };
-
-  // Optionally, show an error immediately if the user data is not present
+  // ----------------------------------------------
+  // LOAD FORM + QUESTIONS
+  // ----------------------------------------------
   useEffect(() => {
-    if (!getUserFromLocalStorage()) {
-      setError("User not found! Please sign in again.");
-    }
-  }, []);
+    async function load() {
+      setLoading(true);
+      const res = await fetch(`/api/reflection/form/${patternId}/`);
+      const data = await res.json();
 
-  const isComplete = Boolean(cplusplus && observerPattern && classes);
+      if (!data || data.error) {
+        console.error("Reflection form error:", data.error);
+        setLoading(false);
+        return;
+      }
 
-  const handleSubmit = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const user = getUserFromLocalStorage();
-      if (!user) throw new Error("User not found in localStorage.");
+      setFormId(data.form.id);
 
-      // Save answers
-      const { error: answerError } = await supabase
-        .from("self_reflection_answers")
-        .insert([
-          {
-            user_id: user.id,
-            cplusplus_answer: cplusplus,
-            observer_pattern_answer: observerPattern,
-            classes_answer: classes,
-          },
-        ]);
-      if (answerError) throw answerError;
+      // Convert API shape → UI shape
+      const q = data.questions.map((q: any) => ({
+        id: q.id,
+        text: q.generated_text,
+        scaleOptions: data.scaleOptions,
+      }));
 
-      // Update 'has_seen_self_reflection'
-      const { error: supabaseError } = await supabase
-        .from("users")
-        .update({ has_seen_self_reflection: true })
-        .eq("id", user.id);
-      if (supabaseError) throw supabaseError;
-
-      // Success
-      onNext();
-    } catch (err: any) {
-      setError(err.message || "Unexpected error occurred.");
-    } finally {
+      setQuestions(q);
       setLoading(false);
     }
-  };
+
+    load();
+  }, [patternId]);
+
+  const isComplete =
+    questions.length > 0 &&
+    Object.keys(answers).length === questions.length;
+
+  // ----------------------------------------------
+  // SUBMIT FORM
+  // ----------------------------------------------
+  async function handleSubmit() {
+    if (!formId) return;
+
+    setSubmitting(true);
+
+    const res = await fetch("/api/reflection/submit", {
+      method: "POST",
+      body: JSON.stringify({
+        formId: formId,
+        patternId: patternId,
+        answers: answers,
+      }),
+    });
+
+    const data = await res.json();
+    setSubmitting(false);
+
+    if (!data.success) {
+      alert("Error submitting reflection: " + data.error);
+      return;
+    }
+
+    onNext();
+  }
+
+  if (loading) {
+    return <div className="p-10 text-center">Loading self-reflection…</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-cyan-50 p-6">
-      <div className="max-w-4xl mx-auto">
-        <Card className="p-8 border-2 border-teal-200">
-          <h1 className="text-4xl font-bold text-teal-900 mb-2">Self-Reflection</h1>
-          <p className="text-lg text-teal-700 mb-8">Before we begin, let's understand where you're starting from.</p>
-          
-          {/* C++ Confidence */}
-          <div className="mb-10">
-            <h3 className="text-xl font-bold text-foreground mb-6">How confident are you with C++ concepts?</h3>
-            <div className="grid grid-cols-6 gap-3">
-              {emojiOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setCplusplus(option.value)}
-                  className={`py-4 px-3 rounded-lg border-2 transition-all transform hover:scale-110 ${
-                    cplusplus === option.value
-                      ? "border-teal-600 bg-teal-100 shadow-lg"
-                      : "border-gray-300 bg-white hover:border-teal-400"
-                  }`}
-                  disabled={loading}
-                >
-                  <div className="text-4xl mb-2">{option.emoji}</div>
-                  <div className="text-xs font-medium text-gray-700">{option.label}</div>
-                </button>
-              ))}
+      <div className="max-w-3xl mx-auto space-y-8">
+        <h1 className="text-4xl font-bold text-teal-900">Self-Reflection</h1>
+        <p className="text-teal-700 text-lg">
+          Before starting this pattern, please reflect on your current understanding.
+        </p>
+
+        {questions.map((q) => (
+          <Card key={q.id} className="p-6 border-teal-200">
+            <h3 className="text-lg font-semibold mb-4">{q.text}</h3>
+
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+              {q.scaleOptions.map((opt: any) => {
+                const selected = answers[q.id] === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() =>
+                      setAnswers((prev) => ({ ...prev, [q.id]: opt.id }))
+                    }
+                    className={[
+                      "py-4 px-3 rounded-lg border-2 transition-all transform",
+                      "hover:scale-110",
+                      selected
+                        ? "border-teal-600 bg-teal-100 shadow-lg"
+                        : "border-gray-300 bg-white hover:border-teal-400",
+                    ].join(" ")}
+                  >
+                    <div className="text-3xl mb-2">{opt.emoji}</div>
+                    <div className="text-xs font-medium text-gray-700">
+                      {opt.label}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-          </div>
+          </Card>
+        ))}
 
-          {/* Observer Pattern Confidence */}
-          <div className="mb-10">
-            <h3 className="text-xl font-bold text-foreground mb-6">How confident are you with the Observer pattern?</h3>
-            <div className="grid grid-cols-6 gap-3">
-              {emojiOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setObserverPattern(option.value)}
-                  className={`py-4 px-3 rounded-lg border-2 transition-all transform hover:scale-110 ${
-                    observerPattern === option.value
-                      ? "border-teal-600 bg-teal-100 shadow-lg"
-                      : "border-gray-300 bg-white hover:border-teal-400"
-                  }`}
-                  disabled={loading}
-                >
-                  <div className="text-4xl mb-2">{option.emoji}</div>
-                  <div className="text-xs font-medium text-gray-700">{option.label}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Lecture Attendance */}
-          <div className="mb-10">
-            <h3 className="text-xl font-bold text-foreground mb-6">How prepared are you from the lectures?</h3>
-            <div className="grid grid-cols-6 gap-3">
-              {emojiOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setClasses(option.value)}
-                  className={`py-4 px-3 rounded-lg border-2 transition-all transform hover:scale-110 ${
-                    classes === option.value
-                      ? "border-teal-600 bg-teal-100 shadow-lg"
-                      : "border-gray-300 bg-white hover:border-teal-400"
-                  }`}
-                  disabled={loading}
-                >
-                  <div className="text-4xl mb-2">{option.emoji}</div>
-                  <div className="text-xs font-medium text-gray-700">{option.label}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {error && <div className="text-red-500 mb-2 text-center">{error}</div>}
-
-          <Button
-            onClick={handleSubmit}
-            disabled={!isComplete || loading}
-            className="w-full py-6 text-lg bg-teal-600 text-white hover:bg-teal-700 disabled:bg-gray-400 rounded-lg font-bold"
-          >
-            {loading ? "Saving..." : "Continue"}
-          </Button>
-        </Card>
+        <Button
+          onClick={handleSubmit}
+          disabled={!isComplete || submitting}
+          className="w-full py-6 text-lg bg-teal-700 text-white hover:bg-teal-800 font-bold rounded-lg"
+        >
+          {submitting ? "Saving..." : "Continue"}
+        </Button>
       </div>
     </div>
   );

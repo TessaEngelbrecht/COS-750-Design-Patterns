@@ -1,14 +1,10 @@
 "use client";
 
-import type React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supebase";
-interface SignupPageProps {
-  onSwitchToLogin: () => void;
-}
+import { signupUser } from "@/lib/auth/signup";
 
-export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
+export default function SignupPage({ onSwitchToLogin }) {
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -16,77 +12,36 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
     password: "",
     confirmPassword: "",
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
+  const [error, setError] = useState("");
+  const router = useRouter();
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
   };
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Sign up function with Supabase
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
+    setError("");
 
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match");
+      setError("Passwords do not match");
       return;
     }
 
-    setLoading(true);
+    const result = await signupUser(formData);
 
-    //  User creation in Supabase Auth
-    const { data, error } = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-    });
-
-    if (error) {
-      alert(`Sign up error: ${error.message}`);
-      setLoading(false);
+    if (result.error) {
+      setError(result.error);
       return;
     }
 
-    // User insertion in the user table
-    if (data?.user) {
-      const { error: dbError } = await supabase.from("users").insert([
-        {
-          id: data.user.id,
-          auth_id: data.user.id,
-          email: formData.email,
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          role: "student",
-          has_seen_self_reflection: false,
-        },
-      ]);
-
-      if (dbError) {
-        alert(`Database error: ${dbError.message}`);
-        setLoading(false);
-        return;
-      }
-
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          id: data.user.id,
-          email: formData.email,
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          role: "student",
-        })
-      );
-
-      setLoading(false);
-      router.push("/student");
-    } else {
-      setLoading(false);
-    }
+    router.push("/student");
   };
 
   return (

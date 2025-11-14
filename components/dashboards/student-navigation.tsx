@@ -13,10 +13,7 @@ interface StudentNavigationProps {
   onNavigate: (page: PageType) => void;
 }
 
-export function StudentNavigation({
-  currentPage,
-  onNavigate,
-}: StudentNavigationProps) {
+export function StudentNavigation({ currentPage, onNavigate }: StudentNavigationProps) {
   const pages: Array<{ id: PageType; label: string; number: number }> = [
     { id: "practice", label: "Practice", number: 1 },
     { id: "uml-builder", label: "UML Builder", number: 2 },
@@ -26,36 +23,37 @@ export function StudentNavigation({
   ];
 
   return (
-    <nav className="sticky top-16 z-40 bg-white">
-      <div className="h-1 w-full bg-sky-600" />
+    <nav className="sticky top-16 z-40 bg-white shadow-sm">
+      {/* Top bar accent */}
+      <div className="h-1 w-full bg-teal-600" />
 
       <div className="max-w-7xl mx-auto px-6 py-6">
-        <ul className="flex items-start justify-evenly gap-6">
-          {pages.map((page) => {
-            const active = currentPage === page.id;
+        <ul className="flex justify-evenly items-start gap-6">
+          {pages.map(({ id, label, number }) => {
+            const active = currentPage === id;
             return (
-              <li key={page.id} className="flex-1 max-w-[180px] text-center">
+              <li key={id} className="flex-1 max-w-[180px] text-center">
                 <button
                   type="button"
-                  onClick={() => onNavigate(page.id)}
-                  aria-current={active ? "page" : undefined}
+                  onClick={() => onNavigate(id)}
                   className="group w-full focus:outline-none"
                 >
                   <div
                     className={[
-                      "mx-auto flex h-12 w-12 items-center justify-center rounded-full font-bold text-white",
-                      active ? "bg-[#007B7C]" : "bg-[#007B7C]/70",
+                      "mx-auto flex h-12 w-12 items-center justify-center rounded-full font-bold text-white transition-all",
+                      active ? "bg-teal-700 shadow-lg" : "bg-teal-500/80 group-hover:bg-teal-600"
                     ].join(" ")}
                   >
-                    {page.number}
+                    {number}
                   </div>
+
                   <div
                     className={[
-                      "mt-3 text-base font-semibold",
-                      "text-black group-hover:text-teal-700 transition-colors",
+                      "mt-3 text-base font-semibold transition-colors",
+                      active ? "text-teal-700" : "text-black group-hover:text-teal-700"
                     ].join(" ")}
                   >
-                    {page.label}
+                    {label}
                   </div>
                 </button>
               </li>
