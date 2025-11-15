@@ -16,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import CheatSheetContent from "../cheat-sheet-content";
+import CheatSheetContent from "@/components/cheat-sheet-content";
 import type { ListResult } from "@/api/services/FinalQuiz";
 
 /* ============================== Types ============================== */
@@ -145,7 +145,9 @@ export interface QuizPageProps {
 /* ============================== Component ============================== */
 
 export function QuizPage({ onNext, user }: QuizPageProps) {
-  const email = JSON.parse(user ?? "{}")?.email as string | undefined;
+  // const email = JSON.parse(user ?? "{}")?.email as string | undefined;
+  const email = "xadrianvh@gmail.com";
+  const userId = user;
 
   const [expandedIds, setExpandedIds] = useState<QId[]>([]);
   const [locked, setLocked] = useState(false);
@@ -191,17 +193,18 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
     activeTimerRef.current = { qid, start: Date.now() };
   };
 
-  useEffect(() => {
-    return () => stopActiveTimer();
-  }, []);
+  // useEffect(() => {
+  //   return () => stopActiveTimer();
+  // }, []);
 
-  useEffect(() => {
-    if (!locked) pageStartRef.current = Date.now();
-  }, [locked]);
+  // useEffect(() => {
+  //   if (!locked) pageStartRef.current = Date.now();
+  // }, [locked]);
 
   /* ========= data ========= */
 
-  const [checking, setChecking] = useState(true);
+  // const [checking, setChecking] = useState(true);
+  const [checking, setChecking] = useState(false);
 
   const getActiveEmail = (): string | null => {
     if (email?.trim()) return email.trim();
@@ -379,29 +382,29 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
   }
 
   // Prepare an attempt once we know the student
-  useEffect(() => {
-    (async () => {
-      try {
-        const activeEmail = getActiveEmail();
-        if (!activeEmail) return;
+  // useEffect(() => {
+  //   (async () => {
+  //     try {
+  //       const activeEmail = getActiveEmail();
+  //       if (!activeEmail) return;
 
-        const { data: userRow, error: userErr } = await supabase
-          .from("users")
-          .select("id")
-          .eq("email", activeEmail)
-          .maybeSingle();
-        if (userErr || !userRow?.id) return;
+  //       const { data: userRow, error: userErr } = await supabase
+  //         .from("users")
+  //         .select("id")
+  //         .eq("email", activeEmail)
+  //         .maybeSingle();
+  //       if (userErr || !userRow?.id) return;
 
-        const attempt = await getOrCreateAttempt(userRow.id as string);
-        setAttemptId(attempt);
-      } catch (e) {
-        console.warn("init attempt failed", e);
-      } finally {
-        setChecking(false);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email, questions.length]);
+  //       const attempt = await getOrCreateAttempt(userRow.id as string);
+  //       setAttemptId(attempt);
+  //     } catch (e) {
+  //       console.warn("init attempt failed", e);
+  //     } finally {
+  //       setChecking(false);
+  //     }
+  //   })();
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [email, questions.length]);
 
   if (checking) {
     return (
@@ -606,13 +609,13 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
   }
 
   const handleContinue = async () => {
-    const activeEmail = getActiveEmail();
+    // const activeEmail = getActiveEmail();
 
-    if (locked) {
-      if (!savedOnce) {
-        const ok = await saveResults(activeEmail, getElapsedSeconds(), true);
-        if (!ok) return;
-      }
+    if (locked || !locked) {
+      // if (!savedOnce) {
+      //   const ok = await saveResults(activeEmail, getElapsedSeconds(), true);
+      //   if (!ok) return;
+      // }
       onNext();
       return;
     }
@@ -627,8 +630,8 @@ export function QuizPage({ onNext, user }: QuizPageProps) {
     gradeAll();
     setLocked(true);
 
-    const ok = await saveResults(activeEmail, getElapsedSeconds(), true);
-    if (!ok) return;
+    // const ok = await saveResults(activeEmail, getElapsedSeconds(), true);
+    // if (!ok) return;
   };
 
   /* ============================== Render ============================== */
@@ -792,7 +795,7 @@ interface Observer {
         </div>
       </header>
 
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 py-4">
+      {/* <div className="mx-auto max-w-5xl px-4 sm:px-6 py-4">
         {saveError && (
           <div className="mb-4 rounded-md border border-rose-300 bg-rose-50 px-4 py-3 text-rose-700">
             Couldn’t save your results: {saveError}
@@ -1017,7 +1020,7 @@ interface Observer {
             );
           })}
         </div>
-      </div>
+      </div> */}
 
      <div className="sticky bottom-0 left-0 right-0 border-t border-slate-200 bg-white backdrop-blur">
         <div className="mx-auto flex max-w-5xl justify-end gap-3 px-4 py-3 sm:px-6">

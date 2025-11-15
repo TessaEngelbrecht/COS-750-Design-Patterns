@@ -111,7 +111,7 @@ export async function POST(req: Request) {
           .from("quiz_attempt")
           .update({ submitted_at: new Date().toISOString() })
           .eq("id", attempt_id);
-      }
+        }
     }
 
     return NextResponse.json({
