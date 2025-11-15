@@ -1,6 +1,6 @@
 "use client"
 
-type PageType = "practice" | "uml-builder" | "cheat-sheet" | "quiz" | "results" | "feedback"
+type PageType = "practice" | "uml-builder" | "quiz" | "results" | "feedback"
 
 interface NavigationProps {
   currentPage: PageType
@@ -11,7 +11,7 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
   const steps = [
     { id: "practice" as const, label: "Practice", number: 1 },
     { id: "uml-builder" as const, label: "UML Builder", number: 2 },
-    { id: "cheat-sheet" as const, label: "Cheat Sheet", number: 3 },
+    // { id: "cheat-sheet" as const, label: "Cheat Sheet", number: 3 },
     { id: "quiz" as const, label: "Quiz", number: 4 },
     { id: "results" as const, label: "Results", number: 5 },
     { id: "feedback" as const, label: "Feedback", number: 6 },

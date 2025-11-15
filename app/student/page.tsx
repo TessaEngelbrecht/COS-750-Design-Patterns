@@ -1,36 +1,21 @@
-"use client";
+import { getUser } from "@/lib/auth/get-user";
+import StudentDashboard from "@/components/dashboards/student-dashboard";
+import { redirect } from "next/navigation";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { StudentDashboard } from "@/components/dashboards/student-dashboard";
+export default async function StudentDashboardPage() {
+  const user = await getUser();
 
-export default function StudentDashboardPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  if (!user) {
+    redirect("/");
+  }
 
-  useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (!userData) {
-      router.push("/");
-      return;
-    }
-    const parsedUser = JSON.parse(userData);
-    if (parsedUser.role !== "student") {
-      router.push("/");
-      return;
-    }
-    setUser(parsedUser);
-  }, [router]);
-
-  if (!user) return null;
+  const { profile } = user;
 
   return (
     <StudentDashboard
-      userName={user.email}
-      onLogout={() => {
-        localStorage.removeItem("user");
-        router.push("/");
-      }}
+      userName={`${profile.first_name} ${profile.last_name}`}
+      userId={profile.id}
+      role={profile.role}
     />
   );
-}
+} 

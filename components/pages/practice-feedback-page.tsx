@@ -1,160 +1,156 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { CheckCircle2, XCircle, RotateCcw, TrendingUp } from "lucide-react"
-import type { PracticeQuestion } from "@/api/services/PracticeQuiz"
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { CheckCircle2, XCircle, RotateCcw, TrendingUp } from "lucide-react";
 
-interface PracticeFeedbackPageProps {
-  questions: PracticeQuestion[]
-  userAnswers: Record<number, any>
-  onRetake: () => void
-  onNext: () => void
+interface FeedbackQuestion {
+  question_id: string;
+  question_text: string;
+  question_data: any;
+  question_format: string;
+  section: string;
+  bloom_level: string;
+  correct_answer: any;
+  user_answer: any;
+  is_correct: boolean;
 }
 
-export function PracticeFeedbackPage({
-  questions,
-  userAnswers,
-  onRetake,
-  onNext,
-}: PracticeFeedbackPageProps) {
-  // Calculate overall score
-  const totalQuestions = questions?.length || 0
-  const correctCount = questions?.filter((q) => {
-    const userAnswer = userAnswers[q.question_id]
-    if (!userAnswer) return false
+interface PracticeFeedbackPageProps {
+  attemptId: string;
+  onNext: () => void;
+  onRetake: () => void;
+}
 
-    // Check based on question format
-    if (q.question_format === "fill-in-blank") {
-      return checkFillInBlankAnswer(userAnswer.blanks, q.correct_answer)
-    } else if (q.question_format === "select-multiple") {
-      return checkSelectMultipleAnswer(userAnswer.answers, q.correct_answer)
-    } else {
-      return (
-        userAnswer.answer?.trim().toLowerCase() ===
-        q.correct_answer?.answer?.trim().toLowerCase()
-      )
-    }
-  }).length || 0
+export function PracticeFeedbackPage({ attemptId, onNext, onRetake }: PracticeFeedbackPageProps) {
+  const [questions, setQuestions] = useState<FeedbackQuestion[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const scorePercentage = totalQuestions > 0 
-    ? Math.round((correctCount / totalQuestions) * 100) 
-    : 0
+  // ------------------------------------------------------------
+  // LOAD ATTEMPT FROM API
+  // ------------------------------------------------------------
+  useEffect(() => {
+    async function loadAttempt() {
+      try {
+        const res = await fetch(`/api/practice-quiz/attempt/${attemptId}`);
+        const data = await res.json();
 
-  // Analyze performance by section
-  const sectionPerformance: Record<
-    string,
-    { correct: number; total: number }
-  > = {}
-  questions?.forEach((q) => {
-    if (!sectionPerformance[q.section]) {
-      sectionPerformance[q.section] = { correct: 0, total: 0 }
-    }
-    sectionPerformance[q.section].total++
+        if (!res.ok) throw new Error(data.error || "Failed to load attempt");
 
-    const userAnswer = userAnswers[q.question_id]
-    if (userAnswer) {
-      const isCorrect =
-        q.question_format === "fill-in-blank"
-          ? checkFillInBlankAnswer(userAnswer.blanks, q.correct_answer)
-          : q.question_format === "select-multiple"
-          ? checkSelectMultipleAnswer(userAnswer.answers, q.correct_answer)
-          : userAnswer.answer?.trim().toLowerCase() ===
-            q.correct_answer?.answer?.trim().toLowerCase()
-
-      if (isCorrect) {
-        sectionPerformance[q.section].correct++
+        setQuestions(data.items);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
       }
     }
-  })
 
-  // Find sections that need improvement (< 70%)
+    loadAttempt();
+  }, [attemptId]);
+
+  // ------------------------------------------------------------
+  // Loading + error UI
+  // ------------------------------------------------------------
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-slate-600">
+        <div>
+          <div className="animate-spin h-12 w-12 border-b-2 border-teal-700 mx-auto mb-4 rounded-full"></div>
+          Loading results…
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="p-6 bg-red-50 border-red-500 max-w-md mx-auto mt-20">
+        <h2 className="font-bold text-red-700 text-xl mb-2">Error</h2>
+        <p>{error}</p>
+      </Card>
+    );
+  }
+
+  if (!questions.length) {
+    return (
+      <div className="text-center text-slate-600 mt-20">
+        No results found for this attempt.
+      </div>
+    );
+  }
+
+  // ------------------------------------------------------------
+  // Score calculations
+  // ------------------------------------------------------------
+  const total = questions.length;
+  const correct = questions.filter((q) => q.is_correct).length;
+  const scorePercentage = Math.round((correct / total) * 100);
+
+  // ------------------------------------------------------------
+  // Section performance
+  // ------------------------------------------------------------
+  const sectionPerformance: Record<string, { correct: number; total: number }> = {};
+
+  questions.forEach((q) => {
+    if (!sectionPerformance[q.section]) {
+      sectionPerformance[q.section] = { correct: 0, total: 0 };
+    }
+    sectionPerformance[q.section].total++;
+    if (q.is_correct) sectionPerformance[q.section].correct++;
+  });
+
   const weakSections = Object.entries(sectionPerformance)
     .filter(([_, perf]) => (perf.correct / perf.total) * 100 < 70)
-    .map(([section]) => section)
+    .map(([section]) => section);
 
-  // Helper function to check fill-in-blank
-  function checkFillInBlankAnswer(
-    userBlanks: Record<number, string>,
-    correctAnswer: any
-  ): boolean {
-    if (!correctAnswer?.blanks || !userBlanks) return false
-    return correctAnswer.blanks.every((blank: any) => {
-      const userAns = userBlanks[blank.position]?.trim().toLowerCase()
-      return blank.answers.some(
-        (ans: string) => ans.toLowerCase() === userAns
-      )
-    })
-  }
-
-  // Helper function to check select-multiple
-  function checkSelectMultipleAnswer(
-    userAnswers: string[],
-    correctAnswer: any
-  ): boolean {
-    if (!correctAnswer?.answers || !userAnswers) return false
-    const userSorted = [...userAnswers].sort()
-    const correctSorted = [...correctAnswer.answers].sort()
-    return (
-      userSorted.length === correctSorted.length &&
-      userSorted.every((ans, idx) => ans === correctSorted[idx])
-    )
-  }
-
-  // Get user answer display text
-  function getUserAnswerDisplay(q: PracticeQuestion): string {
-    const userAnswer = userAnswers[q.question_id]
-    if (!userAnswer) return "No answer"
+  // ------------------------------------------------------------
+  // Formatting helpers
+  // ------------------------------------------------------------
+  function formatUserAnswer(q: FeedbackQuestion) {
+    const ans = q.user_answer;
+    if (!ans) return "No answer";
 
     if (q.question_format === "fill-in-blank") {
-      return Object.entries(userAnswer.blanks || {})
-        .map(([pos, ans]) => `Blank ${pos}: ${ans}`)
-        .join(", ")
-    } else if (q.question_format === "select-multiple") {
-      return (userAnswer.answers || []).join(", ")
-    } else {
-      return userAnswer.answer || "No answer"
+      return Object.entries(ans.blanks || {})
+        .map(([pos, val]) => `Blank ${pos}: ${val}`)
+        .join(", ");
     }
+
+    if (q.question_format === "select-multiple") {
+      return (ans.answers || []).join(", ");
+    }
+
+    return ans.answer ?? "No answer";
   }
 
-  // Get correct answer display text
-  function getCorrectAnswerDisplay(q: PracticeQuestion): string {
-    if (q.question_format === "fill-in-blank") {
-      return (
-        q.correct_answer?.blanks
-          ?.map(
-            (blank: any) =>
-              `Blank ${blank.position}: ${blank.answers.join(" or ")}`
-          )
-          .join(", ") || ""
-      )
-    } else if (q.question_format === "select-multiple") {
-      return (q.correct_answer?.answers || []).join(", ")
-    } else {
-      return q.correct_answer?.answer || ""
-    }
-  }
-
-  // Check if user answer is correct
-  function isAnswerCorrect(q: PracticeQuestion): boolean {
-    const userAnswer = userAnswers[q.question_id]
-    if (!userAnswer) return false
+  function formatCorrectAnswer(q: FeedbackQuestion) {
+    const ca = q.correct_answer;
+    if (!ca) return "";
 
     if (q.question_format === "fill-in-blank") {
-      return checkFillInBlankAnswer(userAnswer.blanks, q.correct_answer)
-    } else if (q.question_format === "select-multiple") {
-      return checkSelectMultipleAnswer(userAnswer.answers, q.correct_answer)
-    } else {
-      return (
-        userAnswer.answer?.trim().toLowerCase() ===
-        q.correct_answer?.answer?.trim().toLowerCase()
-      )
+      return ca.blanks
+        ?.map(
+          (blank: any) =>
+            `Blank ${blank.position}: ${blank.answers.join(" or ")}`
+        )
+        .join(", ");
     }
+
+    if (q.question_format === "select-multiple") {
+      return ca.answers?.join(", ");
+    }
+
+    return ca.answer ?? "";
   }
 
+  // ------------------------------------------------------------
+  // MAIN UI
+  // ------------------------------------------------------------
   return (
     <div className="max-w-4xl mx-auto p-6">
-      {/* Overall Score Card */}
+      {/* SCORE CARD */}
       <Card className="p-8 border-2 border-teal-700 bg-white mb-8">
         <div className="text-center">
           <h2 className="text-3xl font-bold text-slate-900 mb-4">
@@ -166,42 +162,40 @@ export function PracticeFeedbackPage({
             </div>
             <div className="text-left">
               <p className="text-2xl font-semibold text-slate-800">
-                {correctCount} / {totalQuestions}
+                {correct} / {total}
               </p>
-              <p className="text-lg text-slate-600">Questions Correct</p>
+              <p className="text-lg text-slate-600">Correct</p>
             </div>
           </div>
 
-          {/* Performance Message */}
           <p className="text-lg text-slate-700 mb-4">
             {scorePercentage >= 90
-              ? "Excellent work! You have a strong understanding of the Observer pattern."
+              ? "Excellent work!"
               : scorePercentage >= 70
-              ? "Good job! You're on the right track. Review the questions below to strengthen your knowledge."
+              ? "Good job! Review below to strengthen key areas."
               : scorePercentage >= 50
-              ? "Keep practicing. Focus on the areas highlighted below to improve your understanding."
-              : "Review the material and try again. Practice will help you master these concepts."}
+              ? "Keep practicing — you’re improving!"
+              : "Review the material and try again."}
           </p>
 
-          {/* Section Performance Warning */}
           {weakSections.length > 0 && (
             <div className="mt-6 p-4 bg-amber-50 border-2 border-amber-300 rounded-lg">
               <div className="flex items-start gap-3">
-                <TrendingUp className="w-5 h-5 text-amber-700 mt-1 flex-shrink-0" />
-                <div className="text-left">
+                <TrendingUp className="w-5 h-5 text-amber-700 mt-1" />
+                <div>
                   <h3 className="font-semibold text-amber-900 mb-2">
                     Areas for Improvement:
                   </h3>
                   <ul className="list-disc list-inside text-sm text-amber-800 space-y-1">
-                    {weakSections.map((section) => (
-                      <li key={section}>
-                        {section} -{" "}
+                    {weakSections.map((sec) => (
+                      <li key={sec}>
+                        {sec} –{" "}
                         {Math.round(
-                          (sectionPerformance[section].correct /
-                            sectionPerformance[section].total) *
+                          (sectionPerformance[sec].correct /
+                            sectionPerformance[sec].total) *
                             100
                         )}
-                        % correct
+                        %
                       </li>
                     ))}
                   </ul>
@@ -212,139 +206,124 @@ export function PracticeFeedbackPage({
         </div>
       </Card>
 
-      {/* Section Breakdown */}
+      {/* SECTION PERFORMANCE */}
       <Card className="p-6 border-2 border-slate-200 mb-6">
         <h3 className="text-xl font-bold text-slate-900 mb-4">
           Performance by Section
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {Object.entries(sectionPerformance).map(([section, perf]) => {
-            const percentage = Math.round((perf.correct / perf.total) * 100)
+            const pct = Math.round((perf.correct / perf.total) * 100);
             return (
               <div
                 key={section}
                 className="p-4 bg-slate-50 rounded-lg border border-slate-200"
               >
-                <h4 className="font-semibold text-slate-800 mb-2">
-                  {section}
-                </h4>
+                <h4 className="font-semibold text-slate-800 mb-2">{section}</h4>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 bg-slate-200 rounded-full h-2">
                     <div
                       className={`h-2 rounded-full ${
-                        percentage >= 70
+                        pct >= 70
                           ? "bg-green-600"
-                          : percentage >= 50
+                          : pct >= 50
                           ? "bg-amber-500"
                           : "bg-red-500"
                       }`}
-                      style={{ width: `${percentage}%` }}
+                      style={{ width: `${pct}%` }}
                     />
                   </div>
                   <span className="text-sm font-semibold text-slate-700 min-w-[60px]">
-                    {perf.correct}/{perf.total} ({percentage}%)
+                    {perf.correct}/{perf.total} ({pct}%)
                   </span>
                 </div>
               </div>
-            )
+            );
           })}
         </div>
       </Card>
 
-      {/* Question Review */}
+      {/* DETAILED REVIEW */}
       <h3 className="text-2xl font-bold text-slate-900 mb-4">
         Detailed Review
       </h3>
+
       <div className="space-y-4 mb-8">
-        {questions?.map((question, index) => {
-          const isCorrect = isAnswerCorrect(question)
-          const userAnswer = getUserAnswerDisplay(question)
-          const correctAnswer = getCorrectAnswerDisplay(question)
-
-          return (
-            <Card
-              key={question.question_id}
-              className={`p-6 border-2 ${
-                isCorrect
-                  ? "border-green-500 bg-green-50"
-                  : "border-red-500 bg-red-50"
-              }`}
-            >
-              <div className="flex items-start gap-4">
-                <div>
-                  {isCorrect ? (
-                    <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
-                  ) : (
-                    <XCircle className="w-8 h-8 text-red-600 flex-shrink-0" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-bold text-slate-900">
-                      Question {index + 1}
-                    </h4>
-                    <div className="flex gap-2">
-                      <span className="text-xs px-2 py-1 bg-white rounded border border-slate-300">
-                        {question.section}
-                      </span>
-                      <span className="text-xs px-2 py-1 bg-white rounded border border-slate-300">
-                        {question.bloom_level}
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className="text-slate-800 mb-3 font-medium">
-                    {question.question_text}
-                  </p>
-
-                  {/* Show code snippet if exists */}
-                  {question.question_data?.code_snippet && (
-                    <Card className="bg-slate-900 text-white p-3 font-mono text-xs mb-3 overflow-x-auto rounded">
-                      <pre className="whitespace-pre-wrap">
-                        {question.question_data.code_snippet.replace(
-                          /\\n/g,
-                          "\n"
-                        )}
-                      </pre>
-                    </Card>
-                  )}
-
-                  <div className="space-y-2 text-sm">
-                    <p className="text-gray-700">
-                      <strong>Your answer:</strong>{" "}
-                      <span
-                        className={
-                          isCorrect ? "text-green-700" : "text-red-700"
-                        }
-                      >
-                        {userAnswer}
-                      </span>
-                    </p>
-
-                    {!isCorrect && (
-                      <p className="text-gray-700">
-                        <strong>Correct answer:</strong>{" "}
-                        <span className="text-green-700">{correctAnswer}</span>
-                      </p>
-                    )}
-
-                    <p
-                      className={`font-semibold ${
-                        isCorrect ? "text-green-700" : "text-red-700"
-                      }`}
-                    >
-                      <strong>Explanation:</strong>{" "}
-                      {question.correct_answer?.reason}
-                    </p>
-                  </div>
-                </div>
+        {questions.map((q, index) => (
+          <Card
+            key={q.question_id}
+            className={`p-6 border-2 ${
+              q.is_correct ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50"
+            }`}
+          >
+            <div className="flex items-start gap-4">
+              <div>
+                {q.is_correct ? (
+                  <CheckCircle2 className="w-8 h-8 text-green-600" />
+                ) : (
+                  <XCircle className="w-8 h-8 text-red-600" />
+                )}
               </div>
-            </Card>
-          )
-        })}
+
+              <div className="flex-1">
+                <div className="flex items-start justify-between mb-2">
+                  <h4 className="font-bold text-slate-900">
+                    Question {index + 1}
+                  </h4>
+                  <div className="flex gap-2 opacity-80">
+                    <span className="text-xs px-2 py-1 bg-white rounded border border-slate-300">
+                      {q.section}
+                    </span>
+                    <span className="text-xs px-2 py-1 bg-white rounded border border-slate-300">
+                      {q.bloom_level}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-slate-800 mb-3 font-medium">
+                  {q.question_text}
+                </p>
+
+                {q.question_data?.code_snippet && (
+                  <Card className="bg-slate-900 text-white p-3 font-mono text-xs mb-3 overflow-x-auto rounded">
+                    <pre className="whitespace-pre-wrap">
+                      {q.question_data.code_snippet.replace(/\\n/g, "\n")}
+                    </pre>
+                  </Card>
+                )}
+
+                <p className="text-gray-700 text-sm">
+                  <strong>Your answer:</strong>{" "}
+                  <span
+                    className={q.is_correct ? "text-green-700" : "text-red-700"}
+                  >
+                    {formatUserAnswer(q)}
+                  </span>
+                </p>
+
+                {!q.is_correct && (
+                  <p className="text-gray-700 text-sm">
+                    <strong>Correct answer:</strong>{" "}
+                    <span className="text-green-700">
+                      {formatCorrectAnswer(q)}
+                    </span>
+                  </p>
+                )}
+
+                <p
+                  className={`mt-1 text-sm font-semibold ${
+                    q.is_correct ? "text-green-700" : "text-red-700"
+                  }`}
+                >
+                  <strong>Explanation:</strong> {q.correct_answer?.reason}
+                </p>
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
 
-      {/* Action Buttons */}
+      {/* ACTION BUTTONS */}
       <div className="flex flex-col sm:flex-row gap-4">
         <Button
           onClick={onRetake}
@@ -356,5 +335,5 @@ export function PracticeFeedbackPage({
         </Button>
       </div>
     </div>
-  )
+  );
 }
