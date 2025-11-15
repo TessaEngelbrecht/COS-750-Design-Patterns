@@ -88,7 +88,6 @@ export const educatorOverviewApi = createApi({
           const questionMap: Record<string, { correct: number; incorrect: number }> = {};
           const bloomPerformance: Record<string, { total: number; count: number }> = {};
           const bloomCoverage: Record<string, number> = {};
-          const questionSections: QuestionSectionItem[] = [];
 
           (finalAttempts ?? []).forEach((attempt: any) => {
             let totalScore = 0;
@@ -107,17 +106,8 @@ export const educatorOverviewApi = createApi({
               bloomPerformance[bloom].total += isCorrect;
               bloomPerformance[bloom].count++;
 
-              const diff = item.question?.difficulty_id?.difficulty_level ?? "Medium";
               const section = item.question?.section_id?.section ?? "Unknown";
-
-              questionSections.push({
-                section,
-                bloom_level: bloom,
-                difficulty: diff,
-                average_score: isCorrect,
-              });
-
-              bloomCoverage[bloom] = (bloomCoverage[bloom] ?? 0) + 1;
+              const diff = item.question?.difficulty_id?.difficulty_level ?? "Medium";
             });
 
             const avgScore = items.length > 0 ? totalScore / items.length : 0;
@@ -142,36 +132,43 @@ export const educatorOverviewApi = createApi({
           }));
 
           // -----------------------------------------------------------
-          // 3️⃣ Questions by Bloom & Difficulty (stacked bar)
+          // 3️⃣ Questions by Bloom & Difficulty
           // -----------------------------------------------------------
           const { data: questionsRaw, error: questionsError } = await supabase
             .from("question")
-            .select(`
-              id,
-              bloom_id(level),
-              difficulty_id(difficulty_level)
-            `)
+            .select("id,bloom_id(level),difficulty_id(difficulty_level)")
             .eq("is_active", true);
-
           if (questionsError) return { error: mapError(questionsError) };
 
           const questionsByBloomDifficultyMap: Record<string, QuestionsByBloomDifficultyItem> = {};
           questionsRaw?.forEach((q: any) => {
             const bloom = q.bloom_id?.level ?? "Unknown";
             const difficulty = q.difficulty_id?.difficulty_level ?? "Medium";
-
-            if (!questionsByBloomDifficultyMap[bloom]) {
-              questionsByBloomDifficultyMap[bloom] = { bloom, Easy: 0, Medium: 0, Hard: 0 };
-            }
-
+            if (!questionsByBloomDifficultyMap[bloom]) questionsByBloomDifficultyMap[bloom] = { bloom, Easy: 0, Medium: 0, Hard: 0 };
             questionsByBloomDifficultyMap[bloom][difficulty as "Easy" | "Medium" | "Hard"]++;
           });
-
           const questionsByBloomDifficulty = Object.values(questionsByBloomDifficultyMap).sort((a, b) =>
             a.bloom.localeCompare(b.bloom)
           );
 
+          // -----------------------------------------------------------
+          // 4️⃣ Question Sections (aggregate question counts per section)
+          // -----------------------------------------------------------
+          const { data: sectionsData, error: sectionsError } = await supabase
+            .from("sections")
+            .select("section, questions:question(id)")
+            .order("section", { ascending: true });
+          if (sectionsError) return { error: mapError(sectionsError) };
+
+          const questionSections: QuestionSectionItem[] = (sectionsData ?? []).map((s: any) => ({
+            section: s.section,
+            bloom_level: "",
+            difficulty: "",
+            average_score: s.questions?.length ?? 0,
+          }));
+
           const combinedData = [...questionSections];
+
 
           // -----------------------------------------------------------
           // 4️⃣ Practice & Intervention Data (unchanged)

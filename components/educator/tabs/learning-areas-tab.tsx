@@ -19,6 +19,7 @@ import {
 import { useGetGraphsDataQuery } from "@/api/services/EducatorOverviewStatsGraphs";
 import { Popover, Transition } from "@headlessui/react";
 import { ScreenSizeChecker } from "@/components/uml-builder/ScreenSizeChecker";
+
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 function GraphHeading({ title, helpText }: { title: string; helpText: string }) {
@@ -49,24 +50,28 @@ function GraphHeading({ title, helpText }: { title: string; helpText: string }) 
 
 export default function LearningAreasTab() {
   const { data, isLoading } = useGetGraphsDataQuery();
-  if (isLoading || !data) return <div className="text-center py-20">Loading overview data...</div>;
+
+  if (isLoading || !data)
+    return <div className="text-center py-20">Loading overview data...</div>;
 
   const { scoreDistribution, questionAccuracy, bloomRadar, questionSections, questionsByBloomDifficulty } = data;
 
-  const sectionCounts = questionSections.reduce<Record<string, number>>((acc, q) => {
-    const sectionName = q.section ?? "Unknown Section";
-    acc[sectionName] = (acc[sectionName] || 0) + 1;
-    return acc;
-  }, {});
-
-  const polarSeries = Object.values(sectionCounts);
-  const polarCategories = Object.keys(sectionCounts);
+  // -------------------------------
+  // Question Sections Polar Chart
+  // -------------------------------
+  const polarSeries = questionSections.map(q => q.average_score);
+  const polarCategories = questionSections.map(q => q.section);
 
   const polarOptions: ApexCharts.ApexOptions = {
     chart: { type: "polarArea" },
     labels: polarCategories,
     stroke: { colors: ["#fff"] },
     fill: { opacity: 0.8 },
+    tooltip: {
+      y: {
+        formatter: (val: number) => `${val} questions`,
+      },
+    },
     responsive: [
       {
         breakpoint: 480,
@@ -79,6 +84,7 @@ export default function LearningAreasTab() {
     <ScreenSizeChecker>
       <div className="space-y-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Bloom Radar Chart */}
           <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
             <GraphHeading
               title="Bloom’s Taxonomy — Performance vs Coverage"
@@ -96,13 +102,20 @@ export default function LearningAreasTab() {
                   fill="#0D9488"
                   fillOpacity={0.5}
                 />
-                <Radar name="Coverage" dataKey="coverage" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.3} />
+                <Radar
+                  name="Coverage"
+                  dataKey="coverage"
+                  stroke="#F59E0B"
+                  fill="#F59E0B"
+                  fillOpacity={0.3}
+                />
                 <Legend />
                 <Tooltip />
               </RadarChart>
             </ResponsiveContainer>
           </div>
 
+          {/* Question Sections Polar Area */}
           <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
             <GraphHeading
               title="Question Sections Overview"
@@ -112,6 +125,7 @@ export default function LearningAreasTab() {
           </div>
         </div>
 
+        {/* Questions by Bloom & Difficulty */}
         <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
           <GraphHeading
             title="Questions by Bloom & Difficulty"
@@ -130,7 +144,6 @@ export default function LearningAreasTab() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-
       </div>
     </ScreenSizeChecker>
   );
