@@ -8,7 +8,7 @@ import { PracticePage } from "@/components/pages/practice-page";
 import { PracticeFeedbackPage } from "@/components/pages/practice-feedback-page";
 import { UMLBuilderPage } from "@/components/pages/uml-builder-page";
 import { CheatSheetPage } from "@/components/pages/cheat-sheet-page";
-import { QuizPage } from "@/components/pages/quiz-page";
+import QuizPage from "@/components/pages/quiz-page";
 import { ResultsPage } from "@/components/pages/results-page";
 import { FeedbackPage } from "@/components/pages/feedback-page";
 import { StudentNavigation } from "@/components/dashboards/student-navigation";
@@ -136,6 +136,7 @@ export default function StudentDashboard({
         return (
           <QuizPage
             user={userId}
+            patternId={selectedPattern!}
             onNext={() => goTo("results")}
           />
         );
