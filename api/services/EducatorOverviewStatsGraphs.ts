@@ -122,15 +122,6 @@ export const educatorOverviewApi = createApi({
             incorrect: questionMap[qid].incorrect,
           }));
 
-          const bloomOrder = ["Remember", "Understand", "Apply", "Analyze", "Evaluate", "Create"];
-          const bloomRadar: BloomRadarItem[] = bloomOrder.map((lvl) => ({
-            level: lvl,
-            performance: bloomPerformance[lvl]?.count
-              ? Math.round(bloomPerformance[lvl].total / bloomPerformance[lvl].count)
-              : 0,
-            coverage: bloomCoverage[lvl] ?? 0,
-          }));
-
           // -----------------------------------------------------------
           // 3️⃣ Questions by Bloom & Difficulty
           // -----------------------------------------------------------
@@ -152,7 +143,7 @@ export const educatorOverviewApi = createApi({
           );
 
           // -----------------------------------------------------------
-          // 4️⃣ Question Sections (aggregate question counts per section)
+          // 4️⃣ Question Sections
           // -----------------------------------------------------------
           const { data: sectionsData, error: sectionsError } = await supabase
             .from("sections")
@@ -169,9 +160,48 @@ export const educatorOverviewApi = createApi({
 
           const combinedData = [...questionSections];
 
+          // -----------------------------------------------------------
+          // 2️⃣ Fetch Bloom Radar (Final Quiz)
+          // -----------------------------------------------------------
+          const { data: bloomRadarRaw, error: bloomRadarError } = await supabase
+            .from("quiz_attempt_item")
+            .select(`
+                question:question_id(
+                  bloom_id(level)
+                ),
+                is_correct,
+                quiz_attempt:quiz_attempt_id(submitted_at, quiz_type_id)
+              `)
+            .not("quiz_attempt.submitted_at", "is", null);
+
+          // handle errors
+          if (bloomRadarError) return { error: mapError(bloomRadarError) };
+
+          // map data like your SQL
+          const bloomPerformanceMap: Record<
+            string,
+            { total: number; count: number }
+          > = {};
+
+          bloomRadarRaw?.forEach((item: any) => {
+            const bloom = item.question?.bloom_id?.level ?? "Unknown";
+            if (!bloomPerformanceMap[bloom]) bloomPerformanceMap[bloom] = { total: 0, count: 0 };
+            bloomPerformanceMap[bloom].total += item.is_correct ? 100 : 0;
+            bloomPerformanceMap[bloom].count++;
+          });
+
+          const bloomOrder = ["Remember", "Understand", "Apply", "Analyze", "Evaluate", "Create"];
+          const bloomRadar: BloomRadarItem[] = bloomOrder.map((lvl) => ({
+            level: lvl,
+            performance: bloomPerformanceMap[lvl]?.count
+              ? Math.round(bloomPerformanceMap[lvl].total / bloomPerformanceMap[lvl].count)
+              : 0,
+            coverage: bloomPerformanceMap[lvl]?.count ?? 0,
+          }));
+
 
           // -----------------------------------------------------------
-          // 4️⃣ Practice & Intervention Data (unchanged)
+          // 6️⃣ Practice Attempts Aggregation
           // -----------------------------------------------------------
           const { data: practiceAttemptsRaw, error: practiceError } = await supabase
             .from("quiz_attempt")
@@ -197,7 +227,6 @@ export const educatorOverviewApi = createApi({
 
           if (practiceError) console.warn("Practice fetch error:", practiceError.message);
 
-          // Map attempts per student
           const studentMap: Record<string, any[]> = {};
           (practiceAttemptsRaw ?? []).forEach((attempt) => {
             if (!studentMap[attempt.student_id]) studentMap[attempt.student_id] = [];
@@ -284,7 +313,7 @@ export const educatorOverviewApi = createApi({
           }));
 
           // -----------------------------------------------------------
-          // 5️⃣ Intervention Rule Set Flags
+          // 7️⃣ Interventions
           // -----------------------------------------------------------
           const { data: interventionRaw, error: interventionError } = await supabase
             .from("intervention_trigger_log")

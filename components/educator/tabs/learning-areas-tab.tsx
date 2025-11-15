@@ -87,8 +87,23 @@ export default function LearningAreasTab() {
           {/* Bloom Radar Chart */}
           <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
             <GraphHeading
-              title="Bloom’s Taxonomy — Performance vs Coverage"
-              helpText="This radar chart shows student performance (scores) and coverage (number of questions attempted) across each Bloom level. It helps identify areas of strength and where more practice may be needed."
+              title="Bloom’s Taxonomy: Question Coverage & Average Performance"
+              helpText={
+                <>
+                  This radar chart visualizes student performance and engagement across Bloom’s Taxonomy levels.
+                  <br /><br />
+                  <strong>Coverage:</strong> the total number of questions attempted at each Bloom level.
+                  <br />
+                  <strong>Performance:</strong> the average score students achieved on those questions (0–100).
+                  <br /><br />
+                  This helps educators quickly identify:
+                  <ul className="list-disc ml-5">
+                    <li>Which Bloom levels students attempt most frequently.</li>
+                    <li>Which levels students struggle with or excel at.</li>
+                    <li>Areas where additional instruction or practice may be needed.</li>
+                  </ul>
+                </>
+              }
             />
             <ResponsiveContainer width="100%" height={350}>
               <RadarChart data={bloomRadar}>
@@ -114,6 +129,7 @@ export default function LearningAreasTab() {
               </RadarChart>
             </ResponsiveContainer>
           </div>
+
 
           {/* Question Sections Polar Area */}
           <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
