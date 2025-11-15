@@ -74,11 +74,11 @@ export const educatorOverviewApi = createApi({
               )
             `)
             .eq("quiz_type_id", finalTypeId)
-            .not("submitted_at", "is", null); // ✅ only submitted attempts
+            .not("submitted_at", "is", null);
           if (finalError) return { error: mapError(finalError) };
 
           // -----------------------------------------------------------
-          // Final Quiz Aggregations (unchanged)
+          // Final Quiz Aggregations
           // -----------------------------------------------------------
           const scoreDistribution = Array.from({ length: 10 }, (_, i) => ({
             range: `${i * 10}-${(i + 1) * 10}%`,
@@ -141,17 +141,40 @@ export const educatorOverviewApi = createApi({
             coverage: bloomCoverage[lvl] ?? 0,
           }));
 
-          const qByBloomDiffMap: Record<string, QuestionsByBloomDifficultyItem> = {};
-          questionSections.forEach((q) => {
-            if (!qByBloomDiffMap[q.bloom_level])
-              qByBloomDiffMap[q.bloom_level] = { bloom: q.bloom_level, Easy: 0, Medium: 0, Hard: 0 };
-            qByBloomDiffMap[q.bloom_level][q.difficulty as "Easy" | "Medium" | "Hard"]++;
+          // -----------------------------------------------------------
+          // 3️⃣ Questions by Bloom & Difficulty (stacked bar)
+          // -----------------------------------------------------------
+          const { data: questionsRaw, error: questionsError } = await supabase
+            .from("question")
+            .select(`
+              id,
+              bloom_id(level),
+              difficulty_id(difficulty_level)
+            `)
+            .eq("is_active", true);
+
+          if (questionsError) return { error: mapError(questionsError) };
+
+          const questionsByBloomDifficultyMap: Record<string, QuestionsByBloomDifficultyItem> = {};
+          questionsRaw?.forEach((q: any) => {
+            const bloom = q.bloom_id?.level ?? "Unknown";
+            const difficulty = q.difficulty_id?.difficulty_level ?? "Medium";
+
+            if (!questionsByBloomDifficultyMap[bloom]) {
+              questionsByBloomDifficultyMap[bloom] = { bloom, Easy: 0, Medium: 0, Hard: 0 };
+            }
+
+            questionsByBloomDifficultyMap[bloom][difficulty as "Easy" | "Medium" | "Hard"]++;
           });
-          const questionsByBloomDifficulty = Object.values(qByBloomDiffMap);
+
+          const questionsByBloomDifficulty = Object.values(questionsByBloomDifficultyMap).sort((a, b) =>
+            a.bloom.localeCompare(b.bloom)
+          );
+
           const combinedData = [...questionSections];
 
           // -----------------------------------------------------------
-          // 3️⃣ Fetch Practice Quiz Attempts (submitted only)
+          // 4️⃣ Practice & Intervention Data (unchanged)
           // -----------------------------------------------------------
           const { data: practiceAttemptsRaw, error: practiceError } = await supabase
             .from("quiz_attempt")
@@ -171,15 +194,13 @@ export const educatorOverviewApi = createApi({
               )
             `)
             .eq("quiz_type_id", practiceTypeId)
-            .not("submitted_at", "is", null) // ✅ only submitted attempts
+            .not("submitted_at", "is", null)
             .order("student_id", { ascending: true })
             .order("started_at", { ascending: true });
 
           if (practiceError) console.warn("Practice fetch error:", practiceError.message);
 
-          // -----------------------------------------------------------
-          // Processing practice attempts (unchanged)
-          // -----------------------------------------------------------
+          // Map attempts per student
           const studentMap: Record<string, any[]> = {};
           (practiceAttemptsRaw ?? []).forEach((attempt) => {
             if (!studentMap[attempt.student_id]) studentMap[attempt.student_id] = [];
@@ -265,6 +286,9 @@ export const educatorOverviewApi = createApi({
               : 0,
           }));
 
+          // -----------------------------------------------------------
+          // 5️⃣ Intervention Rule Set Flags
+          // -----------------------------------------------------------
           const { data: interventionRaw, error: interventionError } = await supabase
             .from("intervention_trigger_log")
             .select(`
@@ -276,9 +300,7 @@ export const educatorOverviewApi = createApi({
 
           if (interventionError) return { error: mapError(interventionError) };
 
-          // Map to count distinct students per rule set
           const interventionMap: Record<string, { rule_set_name: string; students: Set<string> }> = {};
-
           interventionRaw?.forEach((entry) => {
             const ruleSetId = entry.rule_set_id;
             const studentId = entry.student?.student_id;
@@ -290,12 +312,9 @@ export const educatorOverviewApi = createApi({
               };
             }
 
-            if (studentId) {
-              interventionMap[ruleSetId].students.add(studentId);
-            }
+            if (studentId) interventionMap[ruleSetId].students.add(studentId);
           });
 
-          // Convert to array and count distinct students
           const interventions = Object.entries(interventionMap)
             .map(([rule_set_id, { rule_set_name, students }]) => ({
               rule_set_id,
