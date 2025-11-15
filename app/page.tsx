@@ -24,17 +24,6 @@ export default function Home() {
         setCurrentView('reset-password')
         return
       }
-
-      // Usual logic for auto-redirect if logged in
-      const user = localStorage.getItem("user")
-      if (user) {
-        const userData = JSON.parse(user)
-        if (userData.role === "educator") {
-          router.push("/educator/dashboard")
-        } else if (userData.role === "student") {
-          router.push("/student")
-        }
-      }
     }
   }, [router])
 
