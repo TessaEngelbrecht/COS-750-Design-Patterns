@@ -53,11 +53,9 @@ export async function POST(req: Request) {
         role: profile.role,
       },
     });
-    
-    res.cookies.getAll().forEach((cookie) => {
-      res.cookies.delete(cookie.name);
-    });
-    
+
+    await supabase.auth.getSession();
+
     // 🔥 Forward Supabase auth cookies (new @supabase/ssr pattern)
     const supabaseCookies = (supabase as any)._cookies;
     if (supabaseCookies?.length) {

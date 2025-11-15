@@ -20,31 +20,41 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // ✅ Correct destructuring
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   const pathname = request.nextUrl.pathname;
 
-  const isAuthPage =
-    pathname.startsWith("/auth/login") ||
-    pathname.startsWith("/auth/signup") ||
-    pathname.startsWith("/auth/forgot-password") ||
-    pathname.startsWith("/reset-password") ||
-    pathname.startsWith("/");
+  const AUTH_ROUTES = [
+    "/", 
+    "/auth/login",
+    "/auth/signup",
+    "/auth/forgot-password",
+    "/reset-password",
+  ];
 
+  const isAuthPage = AUTH_ROUTES.includes(pathname);
+
+  // 🚫 If not logged in AND not on auth page → go to /
   if (!session && !isAuthPage) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
+  // 🎯 Logged in AND on auth page → redirect by role
   if (session && isAuthPage) {
-    const role = session.user.user_metadata.role;
+    const role = session.user.user_metadata?.role;
+
+    if (!role) {
+      return NextResponse.redirect(new URL("/student", request.url));
+    }
 
     if (role === "educator") {
       return NextResponse.redirect(new URL("/educator/dashboard", request.url));
-    } else {
-      return NextResponse.redirect(new URL("/student", request.url));
     }
+
+    return NextResponse.redirect(new URL("/student", request.url));
   }
 
   return response;
