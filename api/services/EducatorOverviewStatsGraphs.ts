@@ -12,6 +12,7 @@ export type PracticeTrendItem = { attempt_no: number; avg_score: number };
 export type PracticeVsFinalBloomItem = { bloom_level: string; practice_avg: number; final_avg: number };
 export type PracticeDifficultyOverAttemptsItem = { attempt_no: number; difficulty: string; avg_score: number };
 export type PracticeBloomOverAttemptsItem = { attempt_no: number; bloom_level: string; avg_score: number };
+export type InterventionGraphItem = { rule_set_id: string; rule_set_name: string; students_flagged: number };
 
 export type EducatorOverviewGraphData = {
   scoreDistribution: ScoreDistributionItem[];
@@ -24,6 +25,7 @@ export type EducatorOverviewGraphData = {
   practiceVsFinalBloom: PracticeVsFinalBloomItem[];
   practiceDifficultyOverAttempts: PracticeDifficultyOverAttemptsItem[];
   practiceBloomOverAttempts: PracticeBloomOverAttemptsItem[];
+  interventions: InterventionGraphItem[];
 };
 
 const mapError = (e: PostgrestError) => ({ status: e.code || "SUPABASE_ERROR", error: e.message });
@@ -263,6 +265,45 @@ export const educatorOverviewApi = createApi({
               : 0,
           }));
 
+          const { data: interventionRaw, error: interventionError } = await supabase
+            .from("intervention_trigger_log")
+            .select(`
+                rule_set_id,
+                intervention_rule_set:rule_set_id(name),
+                learning_profile_id,
+                student:learning_profile_id(student_id)
+              `);
+
+          if (interventionError) return { error: mapError(interventionError) };
+
+          // Map to count distinct students per rule set
+          const interventionMap: Record<string, { rule_set_name: string; students: Set<string> }> = {};
+
+          interventionRaw?.forEach((entry) => {
+            const ruleSetId = entry.rule_set_id;
+            const studentId = entry.student?.student_id;
+
+            if (!interventionMap[ruleSetId]) {
+              interventionMap[ruleSetId] = {
+                rule_set_name: entry.intervention_rule_set?.name ?? "Unknown Rule Set",
+                students: new Set<string>(),
+              };
+            }
+
+            if (studentId) {
+              interventionMap[ruleSetId].students.add(studentId);
+            }
+          });
+
+          // Convert to array and count distinct students
+          const interventions = Object.entries(interventionMap)
+            .map(([rule_set_id, { rule_set_name, students }]) => ({
+              rule_set_id,
+              rule_set_name,
+              students_flagged: students.size,
+            }))
+            .sort((a, b) => b.students_flagged - a.students_flagged);
+
           return {
             data: {
               scoreDistribution,
@@ -275,6 +316,7 @@ export const educatorOverviewApi = createApi({
               practiceVsFinalBloom,
               practiceDifficultyOverAttempts,
               practiceBloomOverAttempts,
+              interventions,
             },
           };
         } catch (err: any) {

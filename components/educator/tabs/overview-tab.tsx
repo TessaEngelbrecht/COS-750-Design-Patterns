@@ -55,6 +55,7 @@ export default function OverviewTab() {
     practiceVsFinalBloom,
     practiceDifficultyOverAttempts,
     practiceBloomOverAttempts,
+    interventions
   } = data;
 
   return (
@@ -197,6 +198,23 @@ export default function OverviewTab() {
             </LineChart>
           </ResponsiveContainer>
         </div>
+
+        <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+          <GraphHeading
+            title="Intervention Rule Set Flags"
+            helpText="Shows how many students were flagged by each intervention rule."
+          />
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={interventions} margin={{ top: 10, right: 30, left: 0, bottom: 100 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
+              <XAxis dataKey="rule_set_name" tick={{ fontSize: 10 }} interval={0} angle={-30} textAnchor="end" />
+              <YAxis label={{ value: "Students Flagged", angle: -90, position: "insideLeft", dy: 40 }} />
+              <Tooltip />
+              <Bar dataKey="students_flagged" fill="#FFA500" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
       </div>
     </ScreenSizeChecker>
   );
