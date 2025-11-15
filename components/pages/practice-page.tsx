@@ -24,14 +24,15 @@ import Image from "next/image";
 
 interface PracticePageProps {
   patternId: string;
-  onNext: (id:any) => void;
+  onNext: (id: any) => void;
 }
 
 export function PracticePage({ patternId, onNext }: PracticePageProps) {
   const [questions, setQuestions] = useState<any[]>([]);
   const [attemptId, setAttemptId] = useState<string | null>(null);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [hasStarted, setHasStarted] = useState(false); // 👈 NEW
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -44,10 +45,9 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
 
   const [questionStart, setQuestionStart] = useState(Date.now());
   const [isSaving, setIsSaving] = useState(false);
-  const [showFeedbackPage, setShowFeedbackPage] = useState(false);
 
   // ------------------------------------------------------------
-  // LOAD QUESTIONS (Using New API)
+  // LOAD QUESTIONS
   // ------------------------------------------------------------
   async function loadQuiz() {
     try {
@@ -56,12 +56,13 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
 
       const res = await fetch(`/api/practice-quiz/generate/${patternId}`);
       const data = await res.json();
-      console.log
 
       if (!res.ok) throw new Error(data.error || "Failed to load quiz");
 
       setAttemptId(data.attemptId);
       setQuestions(data.questions);
+
+      setHasStarted(true);
     } catch (err: any) {
       console.error("❌ Load quiz failed:", err);
       setError(err.message);
@@ -70,16 +71,7 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
     }
   }
 
-  const hasLoaded = useRef(false);
-
-  useEffect(() => {
-    if (hasLoaded.current) return;
-    hasLoaded.current = true;
-    
-    loadQuiz();
-  }, [patternId]);
-
-  // Reset question state on index change
+  // Reset question state when index changes
   useEffect(() => {
     setQuestionStart(Date.now());
     setCurrentAnswer("");
@@ -88,15 +80,12 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
   }, [currentIndex]);
 
   // ------------------------------------------------------------
-  // Current question helpers
+  // Helpers
   // ------------------------------------------------------------
   const q = questions[currentIndex];
   const isSubmitted = q ? submittedSet.has(q.question_id) : false;
   const isLast = currentIndex === questions.length - 1;
 
-  // ------------------------------------------------------------
-  // Multiple-select toggler
-  // ------------------------------------------------------------
   const toggleMultiple = (id: string) => {
     setSelectedMultiple((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -104,7 +93,7 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
   };
 
   // ------------------------------------------------------------
-  // SUBMIT ANSWER TO API
+  // SUBMIT ANSWER
   // ------------------------------------------------------------
   async function handleSubmit() {
     if (!q || !attemptId || isSaving) return;
@@ -112,7 +101,6 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
     let formattedAnswer: any;
     let isCorrect = false;
 
-    // Fill-in-blank
     if (q.question_format === "fill-in-blank") {
       const blanksNeeded = q.correct_answer?.blanks ?? [];
       const allFilled = blanksNeeded.every(
@@ -124,27 +112,22 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
       }
       formattedAnswer = { blanks: fillInBlanks };
       isCorrect = checkFillInBlankAnswer(fillInBlanks, q.correct_answer);
-    }
-
-    // Select-multiple
-    else if (q.question_format === "select-multiple") {
-      if (selectedMultiple.length === 0) {
+    } else if (q.question_format === "select-multiple") {
+      if (!selectedMultiple.length) {
         alert("Select at least one option.");
         return;
       }
       formattedAnswer = { answers: selectedMultiple };
       isCorrect = checkSelectMultipleAnswer(selectedMultiple, q.correct_answer);
-    }
-
-    // Simple answer / MCQ
-    else {
+    } else {
       if (!currentAnswer.trim()) {
         alert("Please enter an answer.");
         return;
       }
       formattedAnswer = { answer: currentAnswer };
-      const correctAns = q.correct_answer?.answer?.trim()?.toLowerCase();
-      isCorrect = currentAnswer.trim().toLowerCase() === correctAns;
+      isCorrect =
+        currentAnswer.trim().toLowerCase() ===
+        q.correct_answer?.answer?.trim()?.toLowerCase();
     }
 
     setIsSaving(true);
@@ -174,9 +157,6 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
     }
   }
 
-  // ------------------------------------------------------------
-  // Check if answer is correct (for UI feedback)
-  // ------------------------------------------------------------
   function getIsCorrect() {
     if (!q || !isSubmitted) return null;
 
@@ -189,33 +169,31 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
     if (q.question_format === "select-multiple")
       return checkSelectMultipleAnswer(saved.answers, q.correct_answer);
 
-    const userAns = saved.answer?.trim().toLowerCase();
-    const correctAns = q.correct_answer?.answer?.trim().toLowerCase();
-    return userAns === correctAns;
+    return (
+      saved.answer?.trim().toLowerCase() ===
+      q.correct_answer?.answer?.trim().toLowerCase()
+    );
   }
 
   const correctness = getIsCorrect();
 
-  // ------------------------------------------------------------
-  // Navigation
-  // ------------------------------------------------------------
   const handleNext = () => {
     if (isLast) {
-      onNext(attemptId);   // <-- send the attempt ID only
+      onNext(attemptId);
       return;
     }
-    setCurrentIndex(i => i + 1);
+    setCurrentIndex((i) => i + 1);
   };
 
   // ------------------------------------------------------------
-  // Loading + error states
+  // LOADING / ERROR
   // ------------------------------------------------------------
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen text-slate-600">
         <div>
           <div className="animate-spin h-12 w-12 border-b-2 border-teal-700 mx-auto mb-4 rounded-full"></div>
-          Loading questions…
+          Loading…
         </div>
       </div>
     );
@@ -232,7 +210,39 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
     );
   }
 
-  if (!questions.length) {
+  // ------------------------------------------------------------
+  // ⭐ START SCREEN (NEW)
+  // ------------------------------------------------------------
+  if (!hasStarted) {
+    return (
+      <div className="min-vh-screen flex items-center justify-center p-6">
+        <Card className="p-10 max-w-xl text-center border-teal-700/70 border-2 shadow-lg">
+          <h2 className="text-3xl font-bold text-slate-900 mb-4">
+            Practice Quiz
+          </h2>
+
+          <p className="text-slate-700 mb-6">
+            This adaptive practice quiz is tailored to your learning profile.
+          </p>
+
+          <Button
+            className="bg-teal-700 text-white font-bold px-8 py-3 text-lg rounded-lg
+                       hover:bg-teal-800 disabled:bg-slate-400"
+            disabled={isLoading}
+            onClick={loadQuiz}  
+          >
+            {isLoading ? "Preparing Quiz..." : "Start Quiz"}
+          </Button>
+
+          {error && (
+            <p className="text-red-600 text-sm mt-4">{error}</p>
+          )}
+        </Card>
+      </div>
+    );
+  }
+
+  if (!questions.length || questions.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-screen text-slate-600">
         No practice questions found.
@@ -241,7 +251,7 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
   }
 
   // ------------------------------------------------------------
-  // MAIN RENDER
+  // 🚀 MAIN QUIZ UI
   // ------------------------------------------------------------
   return (
     <div className="min-h-screen bg-white">

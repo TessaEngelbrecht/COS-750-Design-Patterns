@@ -170,7 +170,6 @@ export default function StudentDashboard({
             currentPage as
               | "practice"
               | "uml-builder"
-              | "cheat-sheet"
               | "quiz"
               | "results"
               | "feedback"
