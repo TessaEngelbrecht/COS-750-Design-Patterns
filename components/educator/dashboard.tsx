@@ -98,7 +98,7 @@ export default function EducatorDashboard({ user, router }: DashboardProps) {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-8 py-12">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="metric-card border-l-8 border-2 border-teal-600">
             <div className="text-3xl font-bold text-teal-600">{statsLoading ? "..." : stats?.totalStudents ?? 0}</div>
             <p className="text-sm text-gray-600">Total Students</p>
@@ -118,10 +118,10 @@ export default function EducatorDashboard({ user, router }: DashboardProps) {
             <p className="text-sm text-gray-600">AVG Final Quiz</p>
           </div>
 
-          <div className="metric-card border-l-8 border-2 border-red-500">
+          {/* <div className="metric-card border-l-8 border-2 border-red-500">
             <div className="text-3xl font-bold text-red-500">{statsLoading ? "..." : stats?.atRiskCount ?? 0}</div>
             <p className="text-sm text-gray-600">At Risk</p>
-          </div>
+          </div> */}
         </div>
 
         {/* Tabs */}
