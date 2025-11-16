@@ -6,12 +6,35 @@ A comprehensive Next.js web application for teaching the Observer design pattern
 
 https://cos-750-design-patterns.vercel.app
 
+
+## Team
+
+| Name | GitHub | Email |
+|------|--------|-------|
+| Tessa Engelbrecht | TessaEngelbrecht | u22633601@tuks.co.za|
+| Mignon Erasmus | MignonErasmus| u22492586@tuks.co.za|
+| Xadrian van Heerden | XadrianvHeerden| u22699572@tuks.co.za|
+| Cathryn Ackerman | CatAcker| u24076491@tuks.co.za|
+| Joelle Pangu | JoellePangu| u25729790@tuks.co.za|
+
 ## Project Overview
 
 This application bridges the gap between theoretical understanding and practical application of the Observer design pattern by providing:
 
 - **For Students**: Interactive learning modules, diagnostic assessments, adaptive quizzes, and UML diagram building
 - **For Educators**: Comprehensive analytics dashboards with performance tracking and intervention tools
+
+## Project Resources
+
+### Documentation
+- [SRS Document](X) *(Add link here)*
+- [ID document](X) *(Add link here)*
+- [Brainstorm doc](https://docs.google.com/document/d/1Eop76wx5tPSa-NbLFFW49BTACVw--hcbWRLy1aRBQWo/edit?usp=drive_link)
+- [Assignment/Quiz info](https://docs.google.com/document/d/1zTYszqJeDi0885-hs1n1OaBtZ2us5q0UwA6uApQs8Jw/edit?usp=drive_link)
+
+### Design
+- [Figma Design](https://www.figma.com/design/jnRrF8zGrQ3G2j7xSOSZ7X/Education-Semester-Project?node-id=0-1&t=FUWhgeEpf4nRuzR0-1) 
+- [Canva Presentation (Read-Only)](https://www.canva.com/design/DAG4sCPo8rU/gHPstWzSm50h-G01ihRmDg/edit?utm_content=DAG4sCPo8rU&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton) 
 
 ## Technology Stack
 
@@ -23,6 +46,7 @@ This application bridges the gap between theoretical understanding and practical
 - **State Management**: React hooks with localStorage for mock data
 - **UI Components**: shadcn/ui components
 -  **Deployment** Vercel
+
 
 ## Key Features
 
@@ -194,12 +218,3 @@ Deployed on Vercel. Make sure to add your environment variables in the Vercel da
 - Smooth animations and transitions
 
 
-## Team
-
-| Name | GitHub | Email |
-|------|--------|-------|
-| Tessa Engelbrecht | TessaEngelbrecht | u22633601@tuks.co.za|
-| Mignon Erasmus | MignonErasmus| u22492586@tuks.co.za|
-| Xadrian van Heerden | XadrianvHeerden| u22699572@tuks.co.za|
-| Cathryn Ackerman | CatAcker| u24076491@tuks.co.za|
-| Joelle Pangu | JoellePangu| u25729790@tuks.co.za|
