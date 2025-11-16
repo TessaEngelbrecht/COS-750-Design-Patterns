@@ -36,7 +36,6 @@ export async function POST(req: Request) {
     console.error(insertError);
     return NextResponse.json({ error: insertError.message }, { status: 400 });
   }
-  await supabase.auth.getSession();
 
   return NextResponse.json({ success: true });
 }
