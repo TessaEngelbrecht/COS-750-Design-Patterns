@@ -114,7 +114,7 @@
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { ChevronDown, SkipForward, BookOpen } from "lucide-react"
+import { ChevronDown, SkipForward, BookOpen, Download } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
 import IntroductionSection from "./lesson/IntroductionSection"
@@ -126,6 +126,241 @@ import ExplanationsSection from "./lesson/ExplanationsSection"
 import ExampleSection from "./lesson/ExampleSection"
 import ExercisesSection from "./lesson/ExercisesSection"
 import { LessonPageWithTTS } from "@/components/tts/LessonPageWithTTS"
+
+// PDF Generation Function - Only includes loaded sections
+const generateLessonPDF = () => {
+  const sections = [
+    { title: 'Introduction', tag: 'observer-introduction' },
+    { title: 'Identification', tag: 'observer-identification' },
+    { title: 'Structure', tag: 'observer-structure' },
+    { title: 'Problem', tag: 'observer-problem' },
+    { title: 'Participants', tag: 'observer-participants' },
+    { title: 'Explanations', tag: 'observer-explanations' },
+    { title: 'Example', tag: 'observer-example' },
+    { title: 'Exercises', tag: 'observer-exercises' },
+  ];
+
+  // Filter to only loaded sections
+  const loadedSections = sections.filter(section => {
+    const element = document.querySelector(`[data-tag="${section.tag}"]`);
+    const hasContent = element && element.innerHTML.trim().length > 20;
+    return hasContent;
+  });
+
+  if (loadedSections.length === 0) {
+    alert('No lesson content is currently loaded. Please switch to "Full Page" mode in the Lesson tab first.');
+    return;
+  }
+
+  let htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Observer Pattern - Lesson Content</title>
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        body {
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          line-height: 1.7;
+          color: #1f2937;
+          max-width: 850px;
+          margin: 0 auto;
+          padding: 40px 30px;
+          background: white;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 50px;
+          padding-bottom: 20px;
+          border-bottom: 4px solid #0f766e;
+        }
+        h1 {
+          color: #0f766e;
+          font-size: 32px;
+          margin-bottom: 10px;
+        }
+        .subtitle {
+          color: #64748b;
+          font-size: 16px;
+        }
+        .section {
+          margin-bottom: 40px;
+          page-break-inside: avoid;
+        }
+        h2 {
+          color: #0d9488;
+          font-size: 24px;
+          margin-bottom: 16px;
+          padding-bottom: 8px;
+          border-bottom: 2px solid #99f6e4;
+          page-break-after: avoid;
+        }
+        h3 {
+          color: #14b8a6;
+          font-size: 18px;
+          margin-top: 20px;
+          margin-bottom: 12px;
+          font-weight: 600;
+        }
+        p {
+          margin: 12px 0;
+          text-align: justify;
+        }
+        ul, ol {
+          margin: 12px 0;
+          padding-left: 30px;
+        }
+        li {
+          margin: 8px 0;
+          line-height: 1.6;
+        }
+        code {
+          background: #f1f5f9;
+          color: #0f172a;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-family: 'Courier New', Consolas, monospace;
+          font-size: 0.9em;
+          border: 1px solid #e2e8f0;
+        }
+        pre {
+          background: #1e293b;
+          color: #e2e8f0;
+          padding: 20px;
+          border-radius: 8px;
+          overflow-x: auto;
+          margin: 16px 0;
+          page-break-inside: avoid;
+          border: 1px solid #334155;
+        }
+        pre code {
+          background: none;
+          color: inherit;
+          padding: 0;
+          border: none;
+          font-size: 13px;
+          line-height: 1.6;
+        }
+        strong {
+          color: #0f766e;
+          font-weight: 600;
+        }
+        em {
+          color: #14b8a6;
+          font-style: italic;
+        }
+        .info-box {
+          background: #ecfdf5;
+          border-left: 4px solid #14b8a6;
+          padding: 16px;
+          margin: 16px 0;
+          border-radius: 4px;
+        }
+        .content-note {
+          background: #fef3c7;
+          border-left: 4px solid #f59e0b;
+          padding: 12px;
+          margin: 20px 0;
+          border-radius: 4px;
+          font-size: 14px;
+          color: #92400e;
+        }
+        @media print {
+          body {
+            padding: 20px;
+            font-size: 11pt;
+          }
+          .section {
+            page-break-before: auto;
+            page-break-after: auto;
+          }
+          h2 {
+            page-break-after: avoid;
+          }
+          pre {
+            page-break-inside: avoid;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>Observer Design Pattern</h1>
+        <p class="subtitle">Lesson Content (${loadedSections.length} of ${sections.length} sections)</p>
+      </div>
+  `;
+
+  // Add note if not all sections are loaded
+  if (loadedSections.length < sections.length) {
+    const missingSections = sections
+      .filter(s => !loadedSections.find(l => l.tag === s.tag))
+      .map(s => s.title);
+
+    htmlContent += `
+      <div class="content-note">
+        <p><strong>Note:</strong> This PDF contains only the sections that were loaded in your browser.</p>
+        <p><strong>Missing sections:</strong> ${missingSections.join(', ')}</p>
+        <p>To include all sections, switch to "Full Page" mode in the Lesson tab before downloading.</p>
+      </div>
+    `;
+  }
+
+  // Add only loaded sections
+  loadedSections.forEach(section => {
+    const element = document.querySelector(`[data-tag="${section.tag}"]`);
+
+    if (element) {
+      htmlContent += `<div class="section">`;
+      htmlContent += `<h2>${section.title}</h2>`;
+
+      // Clone the element to avoid modifying the original
+      const clone = element.cloneNode(true) as HTMLElement;
+
+      // Remove any interactive elements like buttons
+      clone.querySelectorAll('button').forEach(btn => btn.remove());
+
+      // Get the inner HTML with all formatting preserved
+      const content = clone.innerHTML;
+
+      htmlContent += content;
+      htmlContent += `</div>`;
+    }
+  });
+
+  htmlContent += `
+      <div style="margin-top: 60px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px;">
+        <p>Generated from Observer Pattern Learning Platform</p>
+        <p>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Create new window
+  const printWindow = window.open('', '_blank');
+
+  if (!printWindow) {
+    alert('Please allow popups to download the PDF');
+    return;
+  }
+
+  // Write content
+  printWindow.document.write(htmlContent);
+  printWindow.document.close();
+
+  // Trigger print dialog after content loads
+  setTimeout(() => {
+    printWindow.print();
+  }, 250);
+};
+
+
+
 
 export function InstructionsPage({ onNext }: { onNext: () => void }) {
   const HEADER_H_PX = 70
@@ -434,23 +669,33 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
     <main className="flex-1 w-full pt-[calc(var(--app-header-h)+60px)] lg:pt-[var(--app-header-h)] px-4 sm:px-6 lg:pl-72 xl:pl-80 max-w-full pb-20">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-teal-700 break-words">
-            {activeMainTab === "Lesson" ? "Lesson Content" : "Instructional Overview"}
-          </h1>
-          {activeMainTab === "Lesson" && (
-            <Button
-              onClick={handleSkipToQuiz}
-              className="flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap"
-            >
-              <SkipForward className="w-4 h-4" />
-              Skip to Quiz
-            </Button>
-          )}
-        </div>
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+  <h1 className="text-2xl sm:text-3xl font-bold text-teal-700 break-words">
+    {activeMainTab === "Lesson" ? "Lesson Content" : "Instructional Overview"}
+  </h1>
+  {activeMainTab === "Lesson" && (
+    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+      <Button
+        onClick={generateLessonPDF}
+        className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap"
+      >
+        <Download className="w-4 h-4" />
+        Download PDF
+      </Button>
+      <Button
+        onClick={handleSkipToQuiz}
+        className="flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap"
+      >
+        <SkipForward className="w-4 h-4" />
+        Skip to Quiz
+      </Button>
+    </div>
+  )}
+</div>
+
 
         {/* Content */}
-        <div className="pb-12">
+        <div className="pb-12" data-lesson-content>
           <AnimatePresence mode="wait">
             {activeMainTab === "Lesson" ? (
               showAllLessonContent ? (

@@ -6,7 +6,7 @@ import { BookOpen } from "lucide-react";
 export default function IntroductionSection() {
   return (
     <LessonSectionWrapper title="Introduction">
-      <div className="space-y-6">
+      <div className="space-y-6" data-tag="observer-introduction">
         <div className="border-l-4 border-teal-600 pl-4 py-2">
           <p className="text-lg leading-relaxed text-gray-800">
             The{" "}
