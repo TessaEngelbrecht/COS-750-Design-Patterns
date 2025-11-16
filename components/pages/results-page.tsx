@@ -809,332 +809,336 @@ export function ResultsPage({
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="px-6 pb-8 max-w-7xl mx-auto pt-4">
-        {/* Status Banner */}
-        <Card className={`p-2 border-4 border-teal-700 ${status.bg} mb-8`}>
-          <div className="flex items-center justify-between">
-            <div className="p-4">
-              <h2
-                className={`text-3xl font-bold mb-2 ${
-                  status.kind === "fail" ? "text-red-500" : "text-teal-700"
-                }`}
+  <div className="min-h-screen bg-white">
+    <div className="px-4 sm:px-6 pb-8 max-w-7xl mx-auto pt-4">
+      {/* Status Banner */}
+      <Card className={`p-3 sm:p-4 border-2 sm:border-4 border-teal-700 ${status.bg} mb-6 sm:mb-8`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1">
+            <h2
+              className={`text-xl sm:text-2xl lg:text-3xl font-bold mb-1 sm:mb-2 ${
+                status.kind === "fail" ? "text-red-500" : "text-teal-700"
+              }`}
+            >
+              {status.title}
+            </h2>
+            <p className="text-sm sm:text-base lg:text-lg text-gray-800 font-semibold sm:font-bold">
+              {status.msg}
+            </p>
+          </div>
+          <div className="hidden md:flex flex-shrink-0">
+            <img
+              src={status.icon}
+              alt="status"
+              className="h-10 w-10 sm:h-12 sm:w-12"
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* Top KPI cards - Mobile Optimized */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 mb-6 sm:mb-8">
+        {/* Final */}
+        <div className="border-l-4 sm:border-l-8 border-teal-600 shadow-md rounded-lg bg-white p-3 sm:p-4">
+          <p className="text-xs sm:text-sm text-teal-700 font-medium">Final Quiz</p>
+          <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-teal-700 pt-2 sm:pt-4">
+            {`${finalPct}%`}
+          </div>
+        </div>
+
+        {/* Improvement */}
+        <div className="border-l-4 sm:border-l-8 border-pink-500 shadow-md rounded-lg bg-white p-3 sm:p-4">
+          <p className="text-xs sm:text-sm text-pink-500 font-medium">Improvement</p>
+          <div className="text-2xl sm:text-3xl lg:text-4xl font-bold pt-2 sm:pt-4">
+            {typeof effectivePracticePct === "number" ? (
+              <span
+                className={
+                  (improvementPct ?? 0) >= 0 ? "text-green-600" : "text-red-600"
+                }
               >
-                {status.title}
-              </h2>
-              <p className="text-lg text-gray-800 font-bold">{status.msg}</p>
+                {(improvementPct ?? 0) >= 0 ? "+" : ""}
+                {improvementPct}%
+              </span>
+            ) : (
+              <span className="text-slate-400">—</span>
+            )}
+          </div>
+        </div>
+
+        {/* Practice Average */}
+        <div className="border-l-4 sm:border-l-8 border-green-500 shadow-md rounded-lg bg-white p-3 sm:p-4 col-span-2 sm:col-span-1">
+          <p className="text-xs sm:text-sm text-green-500 font-medium">Practice Quiz Avg</p>
+          <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-green-500 pt-2">
+            {typeof effectivePracticePct === "number"
+              ? `${effectivePracticePct}%`
+              : "—"}
+          </div>
+          <p className="text-[10px] sm:text-xs text-slate-600 mt-1">
+            {practiceAttemptsCount > 0
+              ? `${practiceAttemptsCount} attempts`
+              : "No attempts"}
+          </p>
+        </div>
+
+        {/* Time Spent (Final) */}
+        <div className="border-l-4 sm:border-l-8 border-blue-600 shadow-md rounded-lg bg-white p-3 sm:p-4">
+          <p className="text-xs sm:text-sm text-blue-600 font-medium">Time Spent</p>
+          <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600 pt-2 sm:pt-4">
+            {fmtHours(timeSpent)}
+          </div>
+        </div>
+
+        {/* Cheat Sheet Accesses (Final) */}
+        <div className="border-l-4 sm:border-l-8 border-purple-500 shadow-md rounded-lg bg-white p-3 sm:p-4">
+          <p className="text-xs sm:text-sm text-purple-500 font-medium">Cheat Access</p>
+          <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-purple-500 pt-2 sm:pt-4">
+            {`${cheatAccesses}x`}
+          </div>
+        </div>
+      </div>
+
+      {/* Practice vs Final comparison bar (overall) */}
+      <Card className="p-4 sm:p-6 border-2 border-gray-200 mb-6 sm:mb-8 bg-white">
+        <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-teal-700 mb-3 sm:mb-4">
+          Overall Practice vs Final Comparison
+        </h3>
+        <div className="space-y-3 sm:space-y-4">
+          <div>
+            <div className="flex justify-between mb-1 text-xs sm:text-sm font-medium">
+              <span className="text-green-700">Practice Quiz Average</span>
+              <span className="text-green-700">
+                {typeof effectivePracticePct === "number"
+                  ? `${effectivePracticePct}%`
+                  : "—"}
+              </span>
             </div>
-            <div className="p-4 hidden md:flex">
-              <img
-                src={status.icon}
-                alt="status"
-                className="h-[3rem] w-[3rem]"
+            <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
+              <div
+                className="h-2 sm:h-3 rounded-full transition-all duration-500"
+                style={{
+                  width: `${
+                    typeof effectivePracticePct === "number"
+                      ? effectivePracticePct
+                      : 0
+                  }%`,
+                  backgroundColor: "#22C55E",
+                }}
               />
             </div>
           </div>
-        </Card>
-
-        {/* Top KPI cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-          {/* Final */}
-          <div className="border-l-8 border-teal-600 shadow-md rounded-lg bg-white p-4">
-            <p className="text-md text-teal-700">Final Quiz</p>
-            <div className="text-4xl font-bold text-teal-700 pt-4">
-              {`${finalPct}%`}
+          <div>
+            <div className="flex justify-between mb-1 text-xs sm:text-sm font-medium">
+              <span className="text-teal-700">Final Quiz</span>
+              <span className="text-teal-700">{finalPct}%</span>
             </div>
-          </div>
-
-          {/* Improvement */}
-          <div className="border-l-8 border-pink-500 shadow-md rounded-lg bg-white p-4">
-            <p className="text-md text-pink-500">Improvement (Final vs Practice)</p>
-            <div className="text-4xl font-bold pt-4">
-              {typeof effectivePracticePct === "number" ? (
-                <span
-                  className={
-                    (improvementPct ?? 0) >= 0 ? "text-green-600" : "text-red-600"
-                  }
-                >
-                  {(improvementPct ?? 0) >= 0 ? "+" : ""}
-                  {improvementPct}%
-                </span>
-              ) : (
-                <span className="text-slate-400">—</span>
-              )}
-            </div>
-          </div>
-
-          {/* Practice Average */}
-          <div className="border-l-8 border-green-500 shadow-md rounded-lg bg-white p-4">
-            <p className="text-md text-green-500">Practice Quiz Average</p>
-            <div className="text-4xl font-bold text-green-500 pt-2">
-              {typeof effectivePracticePct === "number"
-                ? `${effectivePracticePct}%`
-                : "—"}
-            </div>
-            <p className="text-xs text-slate-600 mt-1">
-              {practiceAttemptsCount > 0
-                ? `Across ${practiceAttemptsCount} practice quizzes`
-                : "No completed practice quizzes yet"}
-            </p>
-          </div>
-
-          {/* Time Spent (Final) */}
-          <div className="border-l-8 border-blue-600 shadow-md rounded-lg bg-white p-4">
-            <p className="text-md text-blue-600">Time Spent (Final Quiz)</p>
-            <div className="text-4xl font-bold text-blue-600 pt-4">
-              {fmtHours(timeSpent)}
-            </div>
-          </div>
-
-          {/* Cheat Sheet Accesses (Final) */}
-          <div className="border-l-8 border-purple-500 shadow-md rounded-lg bg-white p-4">
-            <p className="text-md text-purple-500">Cheat Sheet Access</p>
-            <div className="text-4xl font-bold text-purple-500 pt-4">
-              {`${cheatAccesses}x`}
+            <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
+              <div
+                className="h-2 sm:h-3 rounded-full transition-all duration-500"
+                style={{
+                  width: `${finalPct}%`,
+                  backgroundColor: "#0F766E",
+                }}
+              />
             </div>
           </div>
         </div>
+      </Card>
 
-        {/* Practice vs Final comparison bar (overall) */}
-        <Card className="p-6 border-2 border-gray-200 mb-8 bg-white">
-          <h3 className="text-2xl font-bold text-teal-700 mb-4">
-            Overall Practice vs Final Comparison
-          </h3>
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between mb-1 text-sm font-medium">
-                <span className="text-green-700">Practice Quiz Average</span>
-                <span className="text-green-700">
-                  {typeof effectivePracticePct === "number"
-                    ? `${effectivePracticePct}%`
-                    : "—"}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div
-                  className="h-3 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${
-                      typeof effectivePracticePct === "number"
-                        ? effectivePracticePct
-                        : 0
-                    }%`,
-                    backgroundColor: "#22C55E", // green-500
+      {/* Practice timeline vs Final */}
+      <Card className="p-4 sm:p-6 border-2 border-gray-200 mb-6 sm:mb-8 bg-white">
+        <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-teal-700 mb-3 sm:mb-4">
+          Practice Timeline vs Final Quiz
+        </h3>
+        {practiceTimelineData.length === 0 ? (
+          <p className="text-slate-600 text-xs sm:text-sm">
+            No practice quiz attempts recorded for this pattern.
+          </p>
+        ) : (
+          <div className="w-full" style={{ height: '300px', minHeight: '300px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={practiceTimelineData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="index"
+                  label={{
+                    value: "Practice Attempt",
+                    position: "insideBottom",
+                    dy: 10,
                   }}
+                  tick={{ fontSize: 12 }}
                 />
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between mb-1 text-sm font-medium">
-                <span className="text-teal-700">Final Quiz</span>
-                <span className="text-teal-700">{finalPct}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div
-                  className="h-3 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${finalPct}%`,
-                    backgroundColor: "#0F766E", // teal-700
+                <YAxis
+                  domain={[0, 100]}
+                  label={{
+                    value: "Score (%)",
+                    angle: -90,
+                    position: "insideLeft",
+                    dx: -5,
                   }}
+                  tick={{ fontSize: 12 }}
                 />
-              </div>
-            </div>
+                <Tooltip />
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
+                <Line
+                  type="monotone"
+                  dataKey="practiceBefore"
+                  name="Practice (before final)"
+                  stroke="#22C55E"
+                  dot
+                />
+                <Line
+                  type="monotone"
+                  dataKey="practiceAfter"
+                  name="Practice (after final)"
+                  stroke="#A855F7"
+                  strokeDasharray="4 2"
+                  dot
+                />
+                <Line
+                  type="monotone"
+                  dataKey="finalScore"
+                  name="Final quiz score"
+                  stroke="#0F766E"
+                  strokeWidth={2}
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
-        </Card>
+        )}
+        <p className="text-[10px] sm:text-xs text-slate-600 mt-2">
+          Each point represents a completed practice quiz. The final quiz score
+          is shown as a reference line.
+        </p>
+      </Card>
 
-        {/* Practice timeline vs Final */}
-        <Card className="p-6 border-2 border-gray-200 mb-8 bg-white">
-          <h3 className="text-2xl font-bold text-teal-700 mb-4">
-            Practice Timeline vs Final Quiz
+      {/* Bloom + Section side-by-side comparison charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <Card className="p-4 sm:p-6 border-2 border-gray-300 bg-white">
+          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-teal-700 mb-3">
+            Bloom Level: Practice vs Final
           </h3>
-          {practiceTimelineData.length === 0 ? (
-            <p className="text-slate-600 text-sm">
-              No practice quiz attempts recorded for this pattern.
+          {bloomComparisonData.length === 0 ? (
+            <p className="text-slate-600 text-xs sm:text-sm">
+              No Bloom-level metadata available for these questions.
             </p>
           ) : (
-            <div className="w-full h-72">
+            <div className="w-full" style={{ height: '300px', minHeight: '300px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={practiceTimelineData}>
+                <BarChart data={bloomComparisonData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="index"
-                    label={{
-                      value: "Practice Attempt",
-                      position: "insideBottom",
-                      dy: 10,
-                    }}
-                  />
-                  <YAxis
-                    domain={[0, 100]}
-                    label={{
-                      value: "Score (%)",
-                      angle: -90,
-                      position: "insideLeft",
-                      dx: -5,
-                    }}
-                  />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="practiceBefore"
-                    name="Practice (before final)"
-                    stroke="#22C55E" // green-500
-                    dot
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  <Bar
+                    dataKey="practiceScore"
+                    name="Practice avg (%)"
+                    fill="#22C55E"
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="practiceAfter"
-                    name="Practice (after final)"
-                    stroke="#A855F7" // purple-500
-                    strokeDasharray="4 2"
-                    dot
-                  />
-                  <Line
-                    type="monotone"
+                  <Bar
                     dataKey="finalScore"
-                    name="Final quiz score"
-                    stroke="#0F766E" // teal-700
-                    strokeWidth={2}
-                    dot={false}
+                    name="Final quiz (%)"
+                    fill="#0F766E"
                   />
-                </LineChart>
+                </BarChart>
               </ResponsiveContainer>
             </div>
           )}
-          <p className="text-xs text-slate-600 mt-2">
-            Each point represents a completed practice quiz. The final quiz score
-            is shown as a reference line.
-          </p>
         </Card>
 
-        {/* Bloom + Section side-by-side comparison charts */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <Card className="p-6 border-2 border-gray-300 bg-white">
-            <h3 className="text-2xl font-bold text-teal-700 mb-3">
-              Bloom Level: Practice vs Final
-            </h3>
-            {bloomComparisonData.length === 0 ? (
-              <p className="text-slate-600 text-sm">
-                No Bloom-level metadata available for these questions.
-              </p>
-            ) : (
-              <div className="w-full h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={bloomComparisonData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="label" />
-                    <YAxis domain={[0, 100]} />
-                    <Tooltip />
-                    <Legend />
-                    <Bar
-                      dataKey="practiceScore"
-                      name="Practice avg (%)"
-                      fill="#22C55E" // green-500
-                    />
-                    <Bar
-                      dataKey="finalScore"
-                      name="Final quiz (%)"
-                      fill="#0F766E" // teal-700
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </Card>
-
-          <Card className="p-6 border-2 border-gray-300 bg-white">
-            <h3 className="text-2xl font-bold text-teal-700 mb-3">
-              Section: Practice vs Final
-            </h3>
-            {sectionComparisonData.length === 0 ? (
-              <p className="text-slate-600 text-sm">
-                No section metadata available for these questions.
-              </p>
-            ) : (
-              <div className="w-full h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={sectionComparisonData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="label" />
-                    <YAxis domain={[0, 100]} />
-                    <Tooltip />
-                    <Legend />
-                    <Bar
-                      dataKey="practiceScore"
-                      name="Practice avg (%)"
-                      fill="#22C55E" // green-500
-                    />
-                    <Bar
-                      dataKey="finalScore"
-                      name="Final quiz (%)"
-                      fill="#0F766E" // teal-700
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </Card>
-        </div>
-
-        {/* Topic summary (final quiz, textual) */}
-        <Card className="p-6 border-2 border-gray-200 mb-8 bg-white">
-          <h3 className="text-2xl font-bold text-teal-700 mb-3">
-            Topic-Level Overview (Final Quiz)
+        <Card className="p-4 sm:p-6 border-2 border-gray-300 bg-white">
+          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-teal-700 mb-3">
+            Section: Practice vs Final
           </h3>
-          {finalTopicBuckets.length === 0 ? (
-            <p className="text-slate-600 text-sm">
-              No topic metadata was linked to these questions.
+          {sectionComparisonData.length === 0 ? (
+            <p className="text-slate-600 text-xs sm:text-sm">
+              No section metadata available for these questions.
             </p>
           ) : (
-            <div className="space-y-2 text-sm">
-              {finalTopicBuckets
-                .sort((a, b) => a.score - b.score)
-                .map((t) => (
-                  <div
-                    key={t.label}
-                    className="flex items-center justify-between border-b border-slate-100 pb-1"
-                  >
-                    <span className="font-medium text-slate-800">
-                      {t.label}
-                    </span>
-                    <span className="text-slate-700">
-                      {t.score}% ({t.questions} questions)
-                    </span>
-                  </div>
-                ))}
+            <div className="w-full" style={{ height: '300px', minHeight: '300px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={sectionComparisonData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  <Bar
+                    dataKey="practiceScore"
+                    name="Practice avg (%)"
+                    fill="#22C55E"
+                  />
+                  <Bar
+                    dataKey="finalScore"
+                    name="Final quiz (%)"
+                    fill="#0F766E"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           )}
         </Card>
-
-        {/* Recommendations / Interventions */}
-        <Card className="p-6 bg-blue-100 mb-8">
-          <h3 className="text-xl font-bold text-teal-700 mb-3">
-            Recommendations & Suggested Interventions
-          </h3>
-          <div className="space-y-5">
-            {recommendations.map((rec, i) => (
-              <div key={`${rec.title}-${i}`}>
-                <h4 className="font-semibold text-slate-900 mb-1">
-                  {rec.title}
-                </h4>
-                <ul className="list-disc pl-5 text-gray-800 space-y-1">
-                  {rec.bullets.map((b, j) => (
-                    <li key={j}>{b}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Button
-          onClick={onNext}
-          className="w-full bg-teal-700 text-white hover:bg-teal-800 font-bold py-3 rounded-lg text-lg"
-        >
-          Continue
-        </Button>
       </div>
+
+      {/* Topic summary (final quiz, textual) */}
+      <Card className="p-4 sm:p-6 border-2 border-gray-200 mb-6 sm:mb-8 bg-white">
+        <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-teal-700 mb-3">
+          Topic-Level Overview (Final Quiz)
+        </h3>
+        {finalTopicBuckets.length === 0 ? (
+          <p className="text-slate-600 text-xs sm:text-sm">
+            No topic metadata was linked to these questions.
+          </p>
+        ) : (
+          <div className="space-y-2 text-xs sm:text-sm">
+            {finalTopicBuckets
+              .sort((a, b) => a.score - b.score)
+              .map((t) => (
+                <div
+                  key={t.label}
+                  className="flex items-center justify-between border-b border-slate-100 pb-1"
+                >
+                  <span className="font-medium text-slate-800 break-words pr-2">
+                    {t.label}
+                  </span>
+                  <span className="text-slate-700 whitespace-nowrap">
+                    {t.score}% ({t.questions} Q)
+                  </span>
+                </div>
+              ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Recommendations / Interventions */}
+      <Card className="p-4 sm:p-6 bg-blue-100 mb-6 sm:mb-8">
+        <h3 className="text-lg sm:text-xl font-bold text-teal-700 mb-3">
+          Recommendations & Suggested Interventions
+        </h3>
+        <div className="space-y-4 sm:space-y-5">
+          {recommendations.map((rec, i) => (
+            <div key={`${rec.title}-${i}`}>
+              <h4 className="font-semibold text-slate-900 mb-1 text-sm sm:text-base">
+                {rec.title}
+              </h4>
+              <ul className="list-disc pl-4 sm:pl-5 text-gray-800 space-y-1 text-xs sm:text-sm">
+                {rec.bullets.map((b, j) => (
+                  <li key={j} className="break-words">{b}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Button
+        onClick={onNext}
+        className="w-full bg-teal-700 text-white hover:bg-teal-800 font-bold py-2.5 sm:py-3 rounded-lg text-base sm:text-lg"
+      >
+        Continue
+      </Button>
     </div>
-  );
-}
+  </div>
+);
+};
