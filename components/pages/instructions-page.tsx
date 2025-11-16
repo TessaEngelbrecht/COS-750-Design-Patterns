@@ -131,7 +131,7 @@ export function InstructionsPage({ onNext }: { onNext: () => void }) {
   const HEADER_H_PX = 70
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [activeMainTab, setActiveMainTab] = useState("Lesson")
+  const [activeMainTab, setActiveMainTab] = useState("Instructional Layout")
   const [activeLessonTab, setActiveLessonTab] = useState("Introduction")
   const [showAllLessonContent, setShowAllLessonContent] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
