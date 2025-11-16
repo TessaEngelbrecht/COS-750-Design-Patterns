@@ -1,36 +1,205 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Observer Pattern Learning Platform
 
-## Getting Started
+A comprehensive Next.js web application for teaching the Observer design pattern through interactive learning, quizzes, and visual UML diagram building.
 
-First, run the development server:
+## Live Site
 
-```bash
+https://cos-750-design-patterns.vercel.app
+
+## Project Overview
+
+This application bridges the gap between theoretical understanding and practical application of the Observer design pattern by providing:
+
+- **For Students**: Interactive learning modules, diagnostic assessments, adaptive quizzes, and UML diagram building
+- **For Educators**: Comprehensive analytics dashboards with performance tracking and intervention tools
+
+## Technology Stack
+
+- **Framework**: Next.js 16+ (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **Charts**: Recharts (built-in, no ApexCharts needed)
+- **Font**: Poppins from Google Fonts
+- **State Management**: React hooks with localStorage for mock data
+- **UI Components**: shadcn/ui components
+-  **Deployment** Vercel
+
+## Key Features
+
+### For Students
+
+1. **Pre-Quiz Assessment**
+   - Diagnostic questions covering different Bloom's taxonomy levels
+   - Establishes baseline understanding
+   - Routes to personalized learning path
+
+2. **Learning Materials**
+   - Overview tab: Definition, key concepts, components
+   - Videos tab: Placeholder for instructional videos
+   - UML Diagrams tab: Visual pattern representations
+   - Code Examples tab: C++ implementation samples
+
+3. **UML Builder**
+   - Drag-and-drop interface to move classes around
+   - Add attributes and methods to classes
+   - Pre-populated with Subject, Observer, ConcreteSubject, ConcreteObserver
+   - Visual connection lines between classes
+
+4. **Practice & Assessment**
+   - Multiple question types: Multiple choice, fill-in-the-blank, code fix
+   - Immediate feedback with explanations
+   - Performance tracked by Bloom's taxonomy level
+
+5. **Cheat Sheet**
+   - Quick reference for pattern components
+   - Real-world examples and use cases
+   - Advantages and disadvantages
+
+6. **Results Dashboard**
+   - Final score and improvement metrics
+   - Time spent and resource access tracking
+   - Performance breakdown by cognitive level
+   - Personalized recommendations
+
+### For Educators
+
+1. **Overview Tab**
+   - 4 professional charts showing:
+     - Final assessment score distribution (histogram)
+     - Question accuracy by question (stacked bar)
+     - Bloom's taxonomy radar chart
+     - Taxonomy level distribution
+
+2. **Students Tab**
+   - Expandable student list
+   - Quick view: Name and overall score
+   - Detailed view: Final score, improvement, practice quiz, time spent, cheat access
+   - Intervention alerts for struggling students
+
+3. **Questions Tab**
+   - Quiz question management interface
+   - Bloom's taxonomy selector (hexagon UI)
+   - Question type selection (practice/final)
+   - Question format options
+
+4. **Learning Areas Tab**
+   - Performance by cognitive level
+   - Horizontal progress bars for each level
+   - Percentage and question count
+
+## Design System
+
+### Colors
+- Primary: Teal (#0D9488)
+- Accent colors: Pink (#EC407A), Green (#66BB6A), Blue (#29B6F6), Red (#EF5350), Purple (#AB47BC), Yellow (#FDD835)
+- Neutral: White (#FFFFFF), Gray scale for text and backgrounds
+
+### Typography
+- Font Family: Poppins
+- Weights: 400, 500, 600, 700, 800
+- Line height: 1.5 for body text
+
+### Layout
+- Desktop-first responsive design
+- Flexbox for most layouts
+- CSS Grid for complex 2D layouts
+- Consistent spacing using Tailwind scale
+
+### Lookup Tables
+
+- `bloom_level` - Remember, Understand, Apply, Analyze, Evaluate, Create
+- `difficulty_level` - Easy, Medium, Hard
+- `question_format` - multiple-choice, select-multiple, fill-in-blank, identify-error
+- `quiz_type` - Practice Quiz, Final Quiz
+- `sections` - Theory & Concepts, Code Implementation, Pattern Participants, UML Diagrams
+
+
+## Setup
+
+### Prerequisites
+
+- Node.js 18 or higher
+- npm or pnpm
+
+### Installation
+
+1. **Clone the repo**
+
+git clone https://github.com/TessaEngelbrecht/COS-750-Design-Patterns.git
+cd COS-750-Design-Patterns
+
+
+2. **Install dependencies**
+
+npm install
+
+
+3. **Set up environment variables**
+
+Create a `.env.local` file in the root directory:
+
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+
+Get these from your Supabase project dashboard under **Settings > API**.
+
+4. **Run the development server**
+
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Building for Production
 
-## Learn More
+npm run build
+npm start
 
-To learn more about Next.js, take a look at the following resources:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Authentication
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Managed through Supabase Auth. Email/password authentication is set up by default.
 
-## Deploy on Vercel
+## Mobile Support
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The app is fully responsive. The lesson navigation adapts to mobile with a tab + dropdown interface instead of the desktop sidebar.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+Deployed on Vercel. Make sure to add your environment variables in the Vercel dashboard under Project Settings > Environment Variables.
+
+
+## Accessibility
+
+- WCAG 2.1 Level AA compliance
+- Semantic HTML elements
+- ARIA labels where appropriate
+- Color-blind friendly palette
+- Keyboard navigation support
+- Sufficient contrast ratios (4.5:1 minimum)
+
+## Browser Support
+
+- Chrome (latest)
+- Firefox (latest)
+- Safari (latest)
+- Edge (latest)
+
+## Performance
+
+- Optimized images and assets
+- Code splitting for faster initial load
+- Responsive design for all screen sizes
+- Smooth animations and transitions
+
+
+## Team
+
+| Name | GitHub | Email |
+|------|--------|-------|
+| Tessa Engelbrecht | TessaEngelbrecht | u22633601@tuks.co.za|
+| Mignon Erasmus | MignonErasmus| u22492586@tuks.co.za|
+| Xadrian van Heerden | XadrianvHeerden| u22699572@tuks.co.za|
+| Cathryn Ackerman | CatAcker| u24076491@tuks.co.za|
+| Joelle Pangu | JoellePangu| u25729790@tuks.co.za|
