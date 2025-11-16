@@ -51,13 +51,6 @@ function fmtHours(totalSeconds: number) {
   return totalSeconds ? `${(totalSeconds / 3600).toFixed(1)}h` : "0h";
 }
 
-// ---- Chart colours (Palette B: soft pastel) ----
-const COLOR_FINAL_BAR = "#5eead4"; // teal-300
-const COLOR_PRACTICE_BAR = "#c4b5fd"; // violet-300
-const COLOR_FINAL_LINE = "#14b8a6"; // teal-500-ish
-const COLOR_PRACTICE_BEFORE_LINE = "#c4b5fd"; // violet-300
-const COLOR_PRACTICE_AFTER_LINE = "#ddd6fe"; // violet-200
-
 // -------------------- Tips for Bloom levels --------------------
 function makeLevelTip(level: BloomLevel): string[] {
   switch (level) {
@@ -118,9 +111,7 @@ export function ResultsPage({
 
   // Fallback practice average from profile if needed
   const practicePctFromProfile =
-    typeof practicePctProp === "number"
-      ? practicePctProp
-      : practicePctDb ?? undefined;
+    typeof practicePctProp === "number" ? practicePctProp : practicePctDb ?? undefined;
 
   useEffect(() => {
     let mounted = true;
@@ -353,7 +344,7 @@ export function ResultsPage({
       };
     }
 
-    // ---------- Final quiz aggregation ----------
+    // ---------- Final quiz aggregation (points-based) ----------
     let totalPoints = 0;
     let earnedPoints = 0;
     let timeSum = 0;
@@ -433,7 +424,9 @@ export function ResultsPage({
     const finalPct =
       totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
 
-    // ---------- Practice quiz aggregation ----------
+    // ---------- Practice quiz aggregation (question-count-based) ----------
+    //  Score per attempt:
+    //    score = (# items with points_earned > 0) / (total items) * 100
     const bloomMapPractice = new Map<string, { total: number; correct: number }>();
     const sectionMapPractice = new Map<
       string,
@@ -441,34 +434,37 @@ export function ResultsPage({
     >();
     const topicMapPractice = new Map<string, { total: number; correct: number }>();
 
-    const perAttempt = new Map<string, { total: number; earned: number }>();
+    const perAttempt = new Map<
+      string,
+      { totalQuestions: number; correctQuestions: number }
+    >();
 
     practiceItems.forEach((row: any) => {
       const q = row.question ?? null;
-      const isCorrect = !!row.is_correct;
-      const itemPoints = Number(q?.question_content?.points ?? 1);
       const pointsEarned = Number(row.points_earned ?? 0);
+      const gotPoints = pointsEarned > 0; // treat as "correct"
       const attemptId = String(row.quiz_attempt_id);
 
+      // Per-attempt aggregation (count-based)
       if (!perAttempt.has(attemptId)) {
-        perAttempt.set(attemptId, { total: 0, earned: 0 });
+        perAttempt.set(attemptId, { totalQuestions: 0, correctQuestions: 0 });
       }
       const agg = perAttempt.get(attemptId)!;
-      agg.total += itemPoints;
-      agg.earned += pointsEarned;
+      agg.totalQuestions += 1;
+      if (gotPoints) agg.correctQuestions += 1;
 
       // Bloom
       const bloomLabel: string =
         (q?.bloom?.level as BloomLevel | undefined) ?? "Unknown";
       const b = ensure(bloomMapPractice, bloomLabel);
       b.total += 1;
-      if (isCorrect) b.correct += 1;
+      if (gotPoints) b.correct += 1;
 
       // Section
       const sectionLabel: string = q?.section?.section ?? "Unknown Section";
       const s = ensure(sectionMapPractice, sectionLabel);
       s.total += 1;
-      if (isCorrect) s.correct += 1;
+      if (gotPoints) s.correct += 1;
 
       // Topic
       const topics = Array.isArray(q?.question_topic) ? q.question_topic : [];
@@ -476,7 +472,7 @@ export function ResultsPage({
         const label: string = t?.learning_topic?.topic ?? "General";
         const tt = ensure(topicMapPractice, label);
         tt.total += 1;
-        if (isCorrect) tt.correct += 1;
+        if (gotPoints) tt.correct += 1;
       });
     });
 
@@ -517,9 +513,11 @@ export function ResultsPage({
 
     (practiceAttemptsMeta ?? []).forEach((att, idx) => {
       const agg = perAttempt.get(String(att.id));
-      if (!agg || agg.total <= 0) return;
+      if (!agg || agg.totalQuestions <= 0) return;
 
-      const score = Math.round((agg.earned / agg.total) * 100);
+      const score = Math.round(
+        (agg.correctQuestions / agg.totalQuestions) * 100
+      );
       practiceScores.push(score);
 
       let practiceBefore: number | null | undefined = null;
@@ -549,7 +547,8 @@ export function ResultsPage({
     const practiceOverallPct =
       practiceScores.length > 0
         ? Math.round(
-            practiceScores.reduce((sum, v) => sum + v, 0) / practiceScores.length
+            practiceScores.reduce((sum, v) => sum + v, 0) /
+              practiceScores.length
           )
         : undefined;
 
@@ -826,7 +825,11 @@ export function ResultsPage({
               <p className="text-lg text-gray-800 font-bold">{status.msg}</p>
             </div>
             <div className="p-4 hidden md:flex">
-              <img src={status.icon} alt="status" className="h-[3rem] w-[3rem]" />
+              <img
+                src={status.icon}
+                alt="status"
+                className="h-[3rem] w-[3rem]"
+              />
             </div>
           </div>
         </Card>
@@ -916,7 +919,7 @@ export function ResultsPage({
                         ? effectivePracticePct
                         : 0
                     }%`,
-                    backgroundColor: COLOR_PRACTICE_BAR,
+                    backgroundColor: "#22C55E", // green-500
                   }}
                 />
               </div>
@@ -931,7 +934,7 @@ export function ResultsPage({
                   className="h-3 rounded-full transition-all duration-500"
                   style={{
                     width: `${finalPct}%`,
-                    backgroundColor: COLOR_FINAL_BAR,
+                    backgroundColor: "#0F766E", // teal-700
                   }}
                 />
               </div>
@@ -955,7 +958,11 @@ export function ResultsPage({
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="index"
-                    label={{ value: "Practice Attempt", position: "insideBottom", dy: 10 }}
+                    label={{
+                      value: "Practice Attempt",
+                      position: "insideBottom",
+                      dy: 10,
+                    }}
                   />
                   <YAxis
                     domain={[0, 100]}
@@ -972,25 +979,23 @@ export function ResultsPage({
                     type="monotone"
                     dataKey="practiceBefore"
                     name="Practice (before final)"
-                    stroke={COLOR_PRACTICE_BEFORE_LINE}
-                    strokeWidth={2}
+                    stroke="#22C55E" // green-500
                     dot
                   />
                   <Line
                     type="monotone"
                     dataKey="practiceAfter"
                     name="Practice (after final)"
-                    stroke={COLOR_PRACTICE_AFTER_LINE}
+                    stroke="#A855F7" // purple-500
                     strokeDasharray="4 2"
-                    strokeWidth={2}
                     dot
                   />
                   <Line
                     type="monotone"
                     dataKey="finalScore"
                     name="Final quiz score"
-                    stroke={COLOR_FINAL_LINE}
-                    strokeWidth={3}
+                    stroke="#0F766E" // teal-700
+                    strokeWidth={2}
                     dot={false}
                   />
                 </LineChart>
@@ -998,8 +1003,8 @@ export function ResultsPage({
             </div>
           )}
           <p className="text-xs text-slate-600 mt-2">
-            Each point represents a completed practice quiz. The final quiz score is shown as a
-            reference line.
+            Each point represents a completed practice quiz. The final quiz score
+            is shown as a reference line.
           </p>
         </Card>
 
@@ -1025,14 +1030,12 @@ export function ResultsPage({
                     <Bar
                       dataKey="practiceScore"
                       name="Practice avg (%)"
-                      fill={COLOR_PRACTICE_BAR}
-                      radius={4}
+                      fill="#22C55E" // green-500
                     />
                     <Bar
                       dataKey="finalScore"
                       name="Final quiz (%)"
-                      fill={COLOR_FINAL_BAR}
-                      radius={4}
+                      fill="#0F766E" // teal-700
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1060,14 +1063,12 @@ export function ResultsPage({
                     <Bar
                       dataKey="practiceScore"
                       name="Practice avg (%)"
-                      fill={COLOR_PRACTICE_BAR}
-                      radius={4}
+                      fill="#22C55E" // green-500
                     />
                     <Bar
                       dataKey="finalScore"
                       name="Final quiz (%)"
-                      fill={COLOR_FINAL_BAR}
-                      radius={4}
+                      fill="#0F766E" // teal-700
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1094,7 +1095,9 @@ export function ResultsPage({
                     key={t.label}
                     className="flex items-center justify-between border-b border-slate-100 pb-1"
                   >
-                    <span className="font-medium text-slate-800">{t.label}</span>
+                    <span className="font-medium text-slate-800">
+                      {t.label}
+                    </span>
                     <span className="text-slate-700">
                       {t.score}% ({t.questions} questions)
                     </span>
@@ -1112,7 +1115,9 @@ export function ResultsPage({
           <div className="space-y-5">
             {recommendations.map((rec, i) => (
               <div key={`${rec.title}-${i}`}>
-                <h4 className="font-semibold text-slate-900 mb-1">{rec.title}</h4>
+                <h4 className="font-semibold text-slate-900 mb-1">
+                  {rec.title}
+                </h4>
                 <ul className="list-disc pl-5 text-gray-800 space-y-1">
                   {rec.bullets.map((b, j) => (
                     <li key={j}>{b}</li>
