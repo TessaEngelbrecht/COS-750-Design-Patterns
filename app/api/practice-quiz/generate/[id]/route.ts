@@ -10,11 +10,11 @@ function clamp(value: number, min: number, max: number) {
 
 export async function GET(
   req: Request,
-  context: { params: Promise<{ patternId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createServerSupabase();
-    const patternId = (await context.params).patternId;
+    const patternId = (await context.params).id;
 
     if (!patternId)
       return NextResponse.json(
