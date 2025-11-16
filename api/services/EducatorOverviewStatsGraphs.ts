@@ -3,25 +3,16 @@ import { createApi, fakeBaseQuery } from "@reduxjs/toolkit/query/react";
 import type { PostgrestError } from "@supabase/supabase-js";
 
 export type ScoreDistributionItem = { range: string; count: number };
-export type QuestionAccuracyItem = { question_id: number; correct: number; incorrect: number };
-export type BloomRadarItem = {
-  level: "Remember" | "Understand" | "Apply" | "Analyze" | "Evaluate" | "Create";
-  performance: number; // avg student score (%)
-  coverage: number; // % of total questions
-};
-export type QuestionSectionItem = {
-  section: string;
-  bloom_level: string;
-  difficulty: string;
-  average_score: number;
-};
+export type QuestionAccuracyItem = { question_id: string; correct: number; incorrect: number };
+export type BloomRadarItem = { level: string; performance: number; coverage: number };
+export type QuestionSectionItem = { section: string; bloom_level: string; difficulty: string; average_score: number };
 export type QuestionsByBloomDifficultyItem = { bloom: string; Easy: number; Medium: number; Hard: number };
-export type CombinedChartItem = { section: string; bloom_level: string; difficulty: string; average_score: number };
-
+export type CombinedChartItem = QuestionSectionItem;
 export type PracticeTrendItem = { attempt_no: number; avg_score: number };
 export type PracticeVsFinalBloomItem = { bloom_level: string; practice_avg: number; final_avg: number };
 export type PracticeDifficultyOverAttemptsItem = { attempt_no: number; difficulty: string; avg_score: number };
 export type PracticeBloomOverAttemptsItem = { attempt_no: number; bloom_level: string; avg_score: number };
+export type InterventionGraphItem = { rule_set_id: string; rule_set_name: string; students_flagged: number };
 
 export type EducatorOverviewGraphData = {
   scoreDistribution: ScoreDistributionItem[];
@@ -34,6 +25,21 @@ export type EducatorOverviewGraphData = {
   practiceVsFinalBloom: PracticeVsFinalBloomItem[];
   practiceDifficultyOverAttempts: PracticeDifficultyOverAttemptsItem[];
   practiceBloomOverAttempts: PracticeBloomOverAttemptsItem[];
+  interventions: InterventionGraphItem[];
+};
+
+const emptyGraphData: EducatorOverviewGraphData = {
+  scoreDistribution: [],
+  questionAccuracy: [],
+  bloomRadar: [],
+  questionsByBloomDifficulty: [],
+  questionSections: [],
+  combinedData: [],
+  practiceTrend: [],
+  practiceVsFinalBloom: [],
+  practiceDifficultyOverAttempts: [],
+  practiceBloomOverAttempts: [],
+  interventions: [],
 };
 
 const mapError = (e: PostgrestError) => ({ status: e.code || "SUPABASE_ERROR", error: e.message });
@@ -43,211 +49,332 @@ export const educatorOverviewApi = createApi({
   baseQuery: fakeBaseQuery(),
   tagTypes: ["OverviewGraphs"],
   endpoints: (builder) => ({
-    getGraphsData: builder.query<EducatorOverviewGraphData, void>({
-      async queryFn() {
+    getGraphsData: builder.query<EducatorOverviewGraphData, { patternId?: string } | void>({
+      async queryFn(arg) {
+        const patternId = arg?.patternId;
         try {
+          if (patternId) {
+            const { data: patternData, error: patternError } = await supabase
+              .from("design_patterns")
+              .select("id, active")
+              .eq("id", patternId)
+              .single();
 
-          const { data: scores, error: scoreError } = await supabase
-            .from("student_performance_summary")
-            .select("final_quiz_score");
-          if (scoreError) return { error: mapError(scoreError) };
+            if (patternError) return { error: mapError(patternError) };
+            if (!patternData?.active) {
+              return { data: {...emptyGraphData} };
+            }
+          }
+          // -----------------------------------------------------------
+          // 1️⃣ Lookup Quiz Type IDs
+          // -----------------------------------------------------------
+          const { data: quizTypes, error: quizTypeError } = await supabase
+            .from("quiz_type")
+            .select("id, quiz_type");
+          if (quizTypeError) return { error: mapError(quizTypeError) };
 
-          const scoreDistribution: ScoreDistributionItem[] = Array.from({ length: 10 }, (_, i) => ({
+          const practiceTypeId = quizTypes?.find((t) => t.quiz_type === "Practice Quiz")?.id;
+          const finalTypeId = quizTypes?.find((t) => t.quiz_type === "Final Quiz")?.id;
+          if (!practiceTypeId || !finalTypeId) {
+            return { error: { status: "MISSING_QUIZ_TYPES", error: "Practice Quiz or Final Quiz type not found" } };
+          }
+
+          // -----------------------------------------------------------
+          // 2️⃣ Fetch Final Quiz Attempts (submitted only)
+          // -----------------------------------------------------------
+          const { data: finalAttempts, error: finalError } = await supabase
+            .from("quiz_attempt")
+            .select(`
+              id,
+              student_id,
+              quiz_type_id,
+              submitted_at,
+              quiz_attempt_item(
+                id,
+                question_id,
+                is_correct,
+                question:question_id(
+                  bloom_id(level),
+                  difficulty_id(difficulty_level),
+                  section_id(section)
+                )
+              )
+            `)
+            .eq("quiz_type_id", finalTypeId)
+            .not("submitted_at", "is", null);
+          if (finalError) return { error: mapError(finalError) };
+
+          // -----------------------------------------------------------
+          // Final Quiz Aggregations
+          // -----------------------------------------------------------
+          const scoreDistribution = Array.from({ length: 10 }, (_, i) => ({
             range: `${i * 10}-${(i + 1) * 10}%`,
             count: 0,
           }));
-          (scores ?? []).forEach((r: any) => {
-            const s = Number(r.final_quiz_score ?? 0);
-            const idx = Math.min(Math.floor(s / 10), 9);
-            scoreDistribution[idx].count += 1;
+
+          const questionMap: Record<string, { correct: number; incorrect: number }> = {};
+          const bloomPerformance: Record<string, { total: number; count: number }> = {};
+          const bloomCoverage: Record<string, number> = {};
+
+          (finalAttempts ?? []).forEach((attempt: any) => {
+            let totalScore = 0;
+            const items = attempt.quiz_attempt_item ?? [];
+
+            items.forEach((item: any) => {
+              const isCorrect = item.is_correct ? 100 : 0;
+              totalScore += isCorrect;
+
+              const qid = item.question_id;
+              if (!questionMap[qid]) questionMap[qid] = { correct: 0, incorrect: 0 };
+              item.is_correct ? questionMap[qid].correct++ : questionMap[qid].incorrect++;
+
+              const bloom = item.question?.bloom_id?.level ?? "Unknown";
+              if (!bloomPerformance[bloom]) bloomPerformance[bloom] = { total: 0, count: 0 };
+              bloomPerformance[bloom].total += isCorrect;
+              bloomPerformance[bloom].count++;
+
+              const section = item.question?.section_id?.section ?? "Unknown";
+              const diff = item.question?.difficulty_id?.difficulty_level ?? "Medium";
+            });
+
+            const avgScore = items.length > 0 ? totalScore / items.length : 0;
+            const idx = Math.min(Math.floor(avgScore / 10), 9);
+            scoreDistribution[idx].count++;
           });
 
-          const { data: finalResults, error: finalResultsError } = await supabase
-            .from("final_quiz_results")
-            .select("question_id,is_correct");
-          if (finalResultsError) return { error: mapError(finalResultsError) };
-
-          const questionMap: Record<number, { correct: number; incorrect: number }> = {};
-          (finalResults ?? []).forEach((r: any) => {
-            const qid = Number(r.question_id);
-            if (!questionMap[qid]) questionMap[qid] = { correct: 0, incorrect: 0 };
-            if (r.is_correct) questionMap[qid].correct++;
-            else questionMap[qid].incorrect++;
-          });
-          const questionAccuracy: QuestionAccuracyItem[] = Object.entries(questionMap).map(([qid, val]) => ({
-            question_id: Number(qid),
-            correct: val.correct,
-            incorrect: val.incorrect,
+          const sortedQids = Object.keys(questionMap).sort((a, b) => Number(a) - Number(b));
+          const questionAccuracy: QuestionAccuracyItem[] = sortedQids.map((qid, index) => ({
+            question_id: (index + 1).toString(),
+            correct: questionMap[qid].correct,
+            incorrect: questionMap[qid].incorrect,
           }));
 
-          const { data: bloomScoresRows, error: bloomScoresError } = await supabase
-            .from("student_performance_summary")
-            .select("bloom_scores");
-          if (bloomScoresError) return { error: mapError(bloomScoresError) };
+          // -----------------------------------------------------------
+          // 3️⃣ Questions by Bloom & Difficulty
+          // -----------------------------------------------------------
+          const { data: questionsRaw, error: questionsError } = await supabase
+            .from("question")
+            .select("id,bloom_id(level),difficulty_id(difficulty_level)")
+            .eq("is_active", true);
+          if (questionsError) return { error: mapError(questionsError) };
 
-          const performanceMap: Record<string, { total: number; count: number }> = {};
-          (bloomScoresRows ?? []).forEach((r: any) => {
-            const bloomObj = r.bloom_scores ?? {};
-            if (bloomObj && typeof bloomObj === "object") {
-              Object.entries(bloomObj).forEach(([lvl, val]) => {
-                const num = Number(val);
-                if (!Number.isFinite(num)) return;
-                if (!performanceMap[lvl]) performanceMap[lvl] = { total: 0, count: 0 };
-                performanceMap[lvl].total += num;
-                performanceMap[lvl].count++;
-              });
-            }
+          const questionsByBloomDifficultyMap: Record<string, QuestionsByBloomDifficultyItem> = {};
+          questionsRaw?.forEach((q: any) => {
+            const bloom = q.bloom_id?.level ?? "Unknown";
+            const difficulty = q.difficulty_id?.difficulty_level ?? "Medium";
+            if (!questionsByBloomDifficultyMap[bloom]) questionsByBloomDifficultyMap[bloom] = { bloom, Easy: 0, Medium: 0, Hard: 0 };
+            questionsByBloomDifficultyMap[bloom][difficulty as "Easy" | "Medium" | "Hard"]++;
           });
-          const avgPerformance: Record<string, number> = {};
-          Object.entries(performanceMap).forEach(([lvl, v]) => {
-            avgPerformance[lvl] = v.count > 0 ? Math.round(v.total / v.count) : 0;
-          });
+          const questionsByBloomDifficulty = Object.values(questionsByBloomDifficultyMap).sort((a, b) =>
+            a.bloom.localeCompare(b.bloom)
+          );
 
-          const { data: questionBloomRows, error: questionBloomError } = await supabase
-            .from("final_quiz_questions")
-            .select("bloom_level");
-          if (questionBloomError) return { error: mapError(questionBloomError) };
+          // -----------------------------------------------------------
+          // 4️⃣ Question Sections
+          // -----------------------------------------------------------
+          const { data: sectionsData, error: sectionsError } = await supabase
+            .from("sections")
+            .select("section, questions:question(id)")
+            .order("section", { ascending: true });
+          if (sectionsError) return { error: mapError(sectionsError) };
 
-          const coverageMap: Record<string, number> = {};
-          const totalFinalQuestions = (questionBloomRows ?? []).length;
-          (questionBloomRows ?? []).forEach((r: any) => {
-            const lvl = r.bloom_level ?? "Unknown";
-            coverageMap[lvl] = (coverageMap[lvl] ?? 0) + 1;
-          });
-          Object.keys(coverageMap).forEach((k) => {
-            coverageMap[k] = totalFinalQuestions > 0 ? Math.round((coverageMap[k] / totalFinalQuestions) * 100) : 0;
+          const questionSections: QuestionSectionItem[] = (sectionsData ?? []).map((s: any) => ({
+            section: s.section,
+            bloom_level: "",
+            difficulty: "",
+            average_score: s.questions?.length ?? 0,
+          }));
+
+          const combinedData = [...questionSections];
+
+          // -----------------------------------------------------------
+          // 2️⃣ Fetch Bloom Radar (Final Quiz)
+          // -----------------------------------------------------------
+          const { data: bloomRadarRaw, error: bloomRadarError } = await supabase
+            .from("quiz_attempt_item")
+            .select(`
+                question:question_id(
+                  bloom_id(level)
+                ),
+                is_correct,
+                quiz_attempt:quiz_attempt_id(submitted_at, quiz_type_id)
+              `)
+            .not("quiz_attempt.submitted_at", "is", null);
+
+          // handle errors
+          if (bloomRadarError) return { error: mapError(bloomRadarError) };
+
+          // map data like your SQL
+          const bloomPerformanceMap: Record<
+            string,
+            { total: number; count: number }
+          > = {};
+
+          bloomRadarRaw?.forEach((item: any) => {
+            const bloom = item.question?.bloom_id?.level ?? "Unknown";
+            if (!bloomPerformanceMap[bloom]) bloomPerformanceMap[bloom] = { total: 0, count: 0 };
+            bloomPerformanceMap[bloom].total += item.is_correct ? 100 : 0;
+            bloomPerformanceMap[bloom].count++;
           });
 
           const bloomOrder = ["Remember", "Understand", "Apply", "Analyze", "Evaluate", "Create"];
           const bloomRadar: BloomRadarItem[] = bloomOrder.map((lvl) => ({
-            level: lvl as BloomRadarItem["level"],
-            performance: avgPerformance[lvl] ?? 0,
-            coverage: coverageMap[lvl] ?? 0,
+            level: lvl,
+            performance: bloomPerformanceMap[lvl]?.count
+              ? Math.round(bloomPerformanceMap[lvl].total / bloomPerformanceMap[lvl].count)
+              : 0,
+            coverage: bloomPerformanceMap[lvl]?.count ?? 0,
           }));
 
-          const { data: finalQuestions, error: finalQuestionsError } = await supabase
-            .from("final_quiz_questions")
-            .select("question_id,section,bloom_level,difficulty_level");
-          if (finalQuestionsError) return { error: mapError(finalQuestionsError) };
 
-          const qScoreMap: Record<number, { total: number; count: number }> = {};
-          (finalResults ?? []).forEach((r: any) => {
-            const qid = Number(r.question_id);
-            if (!qScoreMap[qid]) qScoreMap[qid] = { total: 0, count: 0 };
-            qScoreMap[qid].total += r.is_correct ? 100 : 0;
-            qScoreMap[qid].count++;
-          });
-
-          const questionSections: QuestionSectionItem[] = (finalQuestions ?? []).map((q: any) => {
-            const avgData = qScoreMap[Number(q.question_id)];
-            const avg = avgData && avgData.count > 0 ? Math.round(avgData.total / avgData.count) : 0;
-            return {
-              section: q.section ?? "Unknown",
-              bloom_level: q.bloom_level ?? "Unknown",
-              difficulty: q.difficulty_level ?? "Medium",
-              average_score: avg,
-            };
-          });
-
-          const qByBloomDiffMap: Record<string, QuestionsByBloomDifficultyItem> = {};
-          questionSections.forEach((q) => {
-            const bloom = q.bloom_level ?? "Unknown";
-            if (!qByBloomDiffMap[bloom]) qByBloomDiffMap[bloom] = { bloom, Easy: 0, Medium: 0, Hard: 0 };
-            const diffKey = (q.difficulty as "Easy" | "Medium" | "Hard") ?? "Medium";
-            qByBloomDiffMap[bloom][diffKey] += 1;
-          });
-          const questionsByBloomDifficulty = Object.values(qByBloomDiffMap);
-
-          const combinedData: CombinedChartItem[] = questionSections.map((q) => ({
-            section: q.section,
-            bloom_level: q.bloom_level,
-            difficulty: q.difficulty,
-            average_score: q.average_score,
-          }));
-
-          const { data: practiceRows, error: practiceError } = await supabase
-            .from("practice_quiz_results")
+          // -----------------------------------------------------------
+          // 6️⃣ Practice Attempts Aggregation
+          // -----------------------------------------------------------
+          const { data: practiceAttemptsRaw, error: practiceError } = await supabase
+            .from("quiz_attempt")
             .select(`
+              id,
               student_id,
-              attempt_number,
-              is_correct,
-              question_id,
-              practice_quiz_questions (
-                bloom_level,
-                difficulty_level
+              quiz_type_id,
+              started_at,
+              submitted_at,
+              quiz_attempt_item(
+                id,
+                is_correct,
+                question:question_id(
+                  bloom_id(level),
+                  difficulty_id(difficulty_level)
+                )
               )
             `)
-            .order("attempt_number", { ascending: true });
+            .eq("quiz_type_id", practiceTypeId)
+            .not("submitted_at", "is", null)
+            .order("student_id", { ascending: true })
+            .order("started_at", { ascending: true });
 
-          if (practiceError) console.warn("practice fetch warning:", practiceError.message);
+          if (practiceError) console.warn("Practice fetch error:", practiceError.message);
+
+          const studentMap: Record<string, any[]> = {};
+          (practiceAttemptsRaw ?? []).forEach((attempt) => {
+            if (!studentMap[attempt.student_id]) studentMap[attempt.student_id] = [];
+            studentMap[attempt.student_id].push(attempt);
+          });
+
+          const practiceAttempts: any[] = [];
+          Object.values(studentMap).forEach((attempts: any[]) => {
+            attempts.forEach((a, idx) => {
+              practiceAttempts.push({ ...a, attempt_no: idx + 1 });
+            });
+          });
 
           const attemptMap: Record<number, { total: number; count: number }> = {};
           const diffAttemptMap: Record<string, { total: number; count: number }> = {};
           const bloomAttemptMap: Record<string, { total: number; count: number }> = {};
 
-          (practiceRows ?? []).forEach((p: any) => {
-            const attempt = Number(p.attempt_number ?? 1);
-            const isCorrect = Boolean(p.is_correct);
-            const bloomLevel = p.practice_quiz_questions?.bloom_level ?? "Unknown";
-            const difficulty = p.practice_quiz_questions?.difficulty_level ?? "Medium";
+          practiceAttempts.forEach((attempt) => {
+            const attempt_no = attempt.attempt_no;
+            const items = attempt.quiz_attempt_item ?? [];
 
-            if (!attemptMap[attempt]) attemptMap[attempt] = { total: 0, count: 0 };
-            attemptMap[attempt].total += isCorrect ? 100 : 0;
-            attemptMap[attempt].count++;
+            items.forEach((item: any) => {
+              const isCorrect = item.is_correct ? 100 : 0;
 
-            const diffKey = `${attempt}|||${difficulty}`;
-            if (!diffAttemptMap[diffKey]) diffAttemptMap[diffKey] = { total: 0, count: 0 };
-            diffAttemptMap[diffKey].total += isCorrect ? 100 : 0;
-            diffAttemptMap[diffKey].count++;
+              if (!attemptMap[attempt_no]) attemptMap[attempt_no] = { total: 0, count: 0 };
+              attemptMap[attempt_no].total += isCorrect;
+              attemptMap[attempt_no].count++;
 
-            const bloomKey = `${attempt}|||${bloomLevel}`;
-            if (!bloomAttemptMap[bloomKey]) bloomAttemptMap[bloomKey] = { total: 0, count: 0 };
-            bloomAttemptMap[bloomKey].total += isCorrect ? 100 : 0;
-            bloomAttemptMap[bloomKey].count++;
+              const diff = item.question?.difficulty_id?.difficulty_level ?? "Medium";
+              const diffKey = `${attempt_no}|||${diff}`;
+              if (!diffAttemptMap[diffKey]) diffAttemptMap[diffKey] = { total: 0, count: 0 };
+              diffAttemptMap[diffKey].total += isCorrect;
+              diffAttemptMap[diffKey].count++;
+
+              const bloom = item.question?.bloom_id?.level ?? "Unknown";
+              const bloomKey = `${attempt_no}|||${bloom}`;
+              if (!bloomAttemptMap[bloomKey]) bloomAttemptMap[bloomKey] = { total: 0, count: 0 };
+              bloomAttemptMap[bloomKey].total += isCorrect;
+              bloomAttemptMap[bloomKey].count++;
+            });
           });
 
-          const practiceTrend: PracticeTrendItem[] = Object.entries(attemptMap)
-            .map(([attempt_no, v]) => ({
-              attempt_no: Number(attempt_no),
-              avg_score: v.count > 0 ? Math.round(v.total / v.count) : 0,
-            }))
-            .sort((a, b) => a.attempt_no - b.attempt_no);
+          const practiceTrend = Object.entries(attemptMap).map(([attempt_no, v]) => ({
+            attempt_no: Number(attempt_no),
+            avg_score: Math.round(v.total / v.count),
+          }));
 
-          const practiceDifficultyOverAttempts: PracticeDifficultyOverAttemptsItem[] = Object.entries(diffAttemptMap)
-            .map(([k, v]) => {
-              const [attempt_noStr, difficulty] = k.split("|||");
-              return {
-                attempt_no: Number(attempt_noStr),
-                difficulty,
-                avg_score: v.count > 0 ? Math.round(v.total / v.count) : 0,
-              };
-            })
-            .sort((a, b) => a.attempt_no - b.attempt_no);
+          const practiceDifficultyOverAttempts = Object.entries(diffAttemptMap).map(([key, v]) => {
+            const [attempt_noStr, difficulty] = key.split("|||");
+            return {
+              attempt_no: Number(attempt_noStr),
+              difficulty,
+              avg_score: Math.round(v.total / v.count),
+            };
+          });
 
-          const practiceBloomOverAttempts: PracticeBloomOverAttemptsItem[] = Object.entries(bloomAttemptMap)
-            .map(([k, v]) => {
-              const [attempt_noStr, bloom_level] = k.split("|||");
-              return {
-                attempt_no: Number(attempt_noStr),
-                bloom_level,
-                avg_score: v.count > 0 ? Math.round(v.total / v.count) : 0,
-              };
-            })
-            .sort((a, b) => a.attempt_no - b.attempt_no);
+          const practiceBloomOverAttempts = Object.entries(bloomAttemptMap).map(([key, v]) => {
+            const [attempt_noStr, bloom_level] = key.split("|||");
+            return {
+              attempt_no: Number(attempt_noStr),
+              bloom_level,
+              avg_score: Math.round(v.total / v.count),
+            };
+          });
 
           const practiceBloomMap: Record<string, { total: number; count: number }> = {};
-          (practiceRows ?? []).forEach((p: any) => {
-            const bloomLevel = p.practice_quiz_questions?.bloom_level ?? "Unknown";
-            if (!practiceBloomMap[bloomLevel]) practiceBloomMap[bloomLevel] = { total: 0, count: 0 };
-            practiceBloomMap[bloomLevel].total += p.is_correct ? 100 : 0;
-            practiceBloomMap[bloomLevel].count++;
+          practiceAttempts.forEach((attempt) => {
+            attempt.quiz_attempt_item?.forEach((item: any) => {
+              const bloom = item.question?.bloom_id?.level ?? "Unknown";
+              if (!practiceBloomMap[bloom]) practiceBloomMap[bloom] = { total: 0, count: 0 };
+              practiceBloomMap[bloom].total += item.is_correct ? 100 : 0;
+              practiceBloomMap[bloom].count++;
+            });
           });
 
           const practiceVsFinalBloom: PracticeVsFinalBloomItem[] = bloomOrder.map((lvl) => ({
             bloom_level: lvl,
-            practice_avg: practiceBloomMap[lvl]?.count ? Math.round(practiceBloomMap[lvl].total / practiceBloomMap[lvl].count) : 0,
-            final_avg: avgPerformance[lvl] ?? 0,
+            practice_avg: practiceBloomMap[lvl]?.count
+              ? Math.round(practiceBloomMap[lvl].total / practiceBloomMap[lvl].count)
+              : 0,
+            final_avg: bloomPerformance[lvl]?.count
+              ? Math.round(bloomPerformance[lvl].total / bloomPerformance[lvl].count)
+              : 0,
           }));
+
+          // -----------------------------------------------------------
+          // 7️⃣ Interventions
+          // -----------------------------------------------------------
+          const { data: interventionRaw, error: interventionError } = await supabase
+            .from("intervention_trigger_log")
+            .select(`
+                rule_set_id,
+                intervention_rule_set:rule_set_id(name),
+                learning_profile_id,
+                student:learning_profile_id(student_id)
+              `);
+
+          if (interventionError) return { error: mapError(interventionError) };
+
+          const interventionMap: Record<string, { rule_set_name: string; students: Set<string> }> = {};
+          interventionRaw?.forEach((entry) => {
+            const ruleSetId = entry.rule_set_id;
+            const studentId = entry.student?.student_id;
+
+            if (!interventionMap[ruleSetId]) {
+              interventionMap[ruleSetId] = {
+                rule_set_name: entry.intervention_rule_set?.name ?? "Unknown Rule Set",
+                students: new Set<string>(),
+              };
+            }
+
+            if (studentId) interventionMap[ruleSetId].students.add(studentId);
+          });
+
+          const interventions = Object.entries(interventionMap)
+            .map(([rule_set_id, { rule_set_name, students }]) => ({
+              rule_set_id,
+              rule_set_name,
+              students_flagged: students.size,
+            }))
+            .sort((a, b) => b.students_flagged - a.students_flagged);
 
           return {
             data: {
@@ -261,11 +388,12 @@ export const educatorOverviewApi = createApi({
               practiceVsFinalBloom,
               practiceDifficultyOverAttempts,
               practiceBloomOverAttempts,
+              interventions,
             },
           };
         } catch (err: any) {
           console.error("Educator Overview Fetch Error:", err);
-          return { error: { status: "UNKNOWN_ERROR", error: String(err?.message ?? err) } };
+          return { error: { status: "UNKNOWN_ERROR", error: err?.message ?? String(err) } };
         }
       },
       providesTags: [{ type: "OverviewGraphs", id: "LIST" }],

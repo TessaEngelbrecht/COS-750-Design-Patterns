@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   // Insert into public.users
-  await supabase.from("users").insert({
+  const { error: insertError } = await supabase.from("users").insert({
     id: data.user!.id,
     auth_id: data.user!.id,
     email,
@@ -32,8 +32,11 @@ export async function POST(req: Request) {
     role: "student",
   });
 
+  if (insertError) {
+    console.error(insertError);
+    return NextResponse.json({ error: insertError.message }, { status: 400 });
+  }
   await supabase.auth.getSession();
-
 
   return NextResponse.json({ success: true });
 }
