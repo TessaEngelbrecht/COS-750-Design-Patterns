@@ -3,10 +3,10 @@ import { createServerSupabase } from "@/lib/supabase/server";
 
 export async function GET(
   req: Request,
-  context: { params: Promise<{ attemptId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createServerSupabase();
-  const attemptId = (await context.params).attemptId;
+  const attemptId = (await context.params).id;
 
   try {
     const { data, error } = await supabase

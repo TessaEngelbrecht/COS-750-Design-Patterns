@@ -3,13 +3,14 @@ import { createServerSupabase } from "@/lib/supabase/server";
 
 export async function GET(
   req: Request,
-  context: { params: Promise<{ patternId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createServerSupabase();
 
     // ✅ FIX: params is a Promise
-    const { patternId } = await context.params;
+    const { id } = await context.params;
+    const patternId = id;
 
     console.log("🔍 Reflection Form Request:", patternId);
 
