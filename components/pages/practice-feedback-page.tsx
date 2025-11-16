@@ -325,15 +325,25 @@ export function PracticeFeedbackPage({ attemptId, onNext, onRetake }: PracticeFe
 
       {/* ACTION BUTTONS */}
       <div className="flex flex-col sm:flex-row gap-4">
-        <Button
-          onClick={onRetake}
-          variant="outline"
-          className="flex-1 py-6 text-lg border-2 border-teal-700 text-teal-700 hover:bg-teal-50 rounded-lg font-bold"
-        >
-          <RotateCcw className="w-5 h-5 mr-2" />
-          Try Another Practice Quiz
-        </Button>
-      </div>
+  {/* Retake - Secondary action */}
+  <Button
+    onClick={onRetake}
+    variant="outline"
+    className="flex-1 py-6 text-lg border-2 border-teal-700 text-teal-700 hover:bg-teal-50 rounded-lg font-bold"
+  >
+    <RotateCcw className="w-5 h-5 mr-2" />
+    Try Another Practice Quiz
+  </Button>
+
+  {/* Continue - Primary action */}
+  <Button
+    onClick={onNext}
+    className="flex-1 py-6 text-lg bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-bold"
+  >
+    Continue to UML Builder
+  </Button>
+</div>
+
     </div>
   );
 }
