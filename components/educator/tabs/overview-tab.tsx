@@ -16,6 +16,7 @@ import {
 import { useGetGraphsDataQuery } from "@/api/services/EducatorOverviewStatsGraphs";
 import { Popover, Transition } from "@headlessui/react";
 import { ScreenSizeChecker } from "@/components/uml-builder/ScreenSizeChecker";
+
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 function GraphHeading({ title, helpText }: { title: string; helpText: string }) {
@@ -44,9 +45,20 @@ function GraphHeading({ title, helpText }: { title: string; helpText: string }) 
   );
 }
 
-export default function OverviewTab() {
-  const { data, isLoading } = useGetGraphsDataQuery();
-  if (isLoading || !data) return <div className="text-center py-20">Loading overview data...</div>;
+export default function OverviewTab({ patternId }: { patternId?: string }) {
+const { data, isLoading } = useGetGraphsDataQuery({ patternId }, { refetchOnMountOrArgChange: true });
+
+
+  if (isLoading) return <div className="text-center py-20">Loading overview data...</div>;
+
+  // If no data or empty graphs, show a message
+  const isEmpty = !data || Object.values(data).every((arr: any) => arr.length === 0);
+  if (isEmpty)
+    return (
+      <div className="text-center py-20 text-gray-500">
+        The selected design pattern is inactive or no data is available. Graphs cannot be displayed.
+      </div>
+    );
 
   const {
     scoreDistribution,
@@ -55,13 +67,13 @@ export default function OverviewTab() {
     practiceVsFinalBloom,
     practiceDifficultyOverAttempts,
     practiceBloomOverAttempts,
-    interventions
+    interventions,
   } = data;
 
   return (
     <ScreenSizeChecker>
       <div className="space-y-10">
-
+        {/* Final Assessment Score Distribution */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
             <GraphHeading
@@ -79,6 +91,7 @@ export default function OverviewTab() {
             </ResponsiveContainer>
           </div>
 
+          {/* Final Quiz Question Accuracy */}
           <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
             <GraphHeading
               title="Final Quiz Question Accuracy"
@@ -97,6 +110,7 @@ export default function OverviewTab() {
           </div>
         </div>
 
+        {/* Practice Performance Trend */}
         <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
           <GraphHeading
             title="Practice Performance Trend (Across Attempts)"
@@ -113,6 +127,7 @@ export default function OverviewTab() {
           </ResponsiveContainer>
         </div>
 
+        {/* Practice vs Final — Bloom Comparison */}
         <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
           <GraphHeading
             title="Practice vs Final — Bloom Comparison"
@@ -131,6 +146,7 @@ export default function OverviewTab() {
           </ResponsiveContainer>
         </div>
 
+        {/* Average Practice Score by Difficulty */}
         <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
           <GraphHeading
             title="Average Practice Score by Difficulty"
@@ -149,7 +165,7 @@ export default function OverviewTab() {
               margin={{ top: 10, right: 30, left: 0, bottom: 40 }}
             >
               <XAxis dataKey="difficulty" label={{ value: "Difficulty Level", position: "insideBottom", dy: 15 }} />
-              <YAxis label={{ value: 'Average Score (%)', angle: -90, position: 'insideLeft', dy: 45 }} />
+              <YAxis label={{ value: "Average Score (%)", angle: -90, position: "insideLeft", dy: 45 }} />
               <Tooltip />
               <Legend verticalAlign="top" align="right" />
               {Array.from(new Set(practiceDifficultyOverAttempts.map((a) => a.attempt_no))).map((attempt_no, idx) => (
@@ -165,6 +181,7 @@ export default function OverviewTab() {
           </ResponsiveContainer>
         </div>
 
+        {/* Average Practice Score by Bloom Level */}
         <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
           <GraphHeading
             title="Average Practice Score by Bloom Level"
@@ -183,7 +200,7 @@ export default function OverviewTab() {
               margin={{ top: 10, right: 30, left: 0, bottom: 40 }}
             >
               <XAxis dataKey="bloom" label={{ value: "Bloom Level", position: "insideBottom", dy: 15 }} />
-              <YAxis label={{ value: 'Average Score (%)', angle: -90, position: 'insideLeft', dy: 45 }} />
+              <YAxis label={{ value: "Average Score (%)", angle: -90, position: "insideLeft", dy: 45 }} />
               <Tooltip />
               <Legend verticalAlign="top" align="right" />
               {Array.from(new Set(practiceBloomOverAttempts.map((a) => a.attempt_no))).map((attempt_no, idx) => (
@@ -199,6 +216,7 @@ export default function OverviewTab() {
           </ResponsiveContainer>
         </div>
 
+        {/* Intervention Rule Set Flags */}
         <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
           <GraphHeading
             title="Intervention Rule Set Flags"
@@ -214,7 +232,6 @@ export default function OverviewTab() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-
       </div>
     </ScreenSizeChecker>
   );

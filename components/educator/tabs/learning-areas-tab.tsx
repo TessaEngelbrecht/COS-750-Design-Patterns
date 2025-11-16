@@ -48,13 +48,21 @@ function GraphHeading({ title, helpText }: { title: string; helpText: string }) 
   );
 }
 
-export default function LearningAreasTab() {
-  const { data, isLoading } = useGetGraphsDataQuery();
+export default function LearningAreasTab({ patternId }: { patternId?: string }) {
+  const { data, isLoading } = useGetGraphsDataQuery({ patternId }, { refetchOnMountOrArgChange: true });
 
-  if (isLoading || !data)
-    return <div className="text-center py-20">Loading overview data...</div>;
+  if (isLoading) return <div className="text-center py-20">Loading overview data...</div>;
 
-  const { scoreDistribution, questionAccuracy, bloomRadar, questionSections, questionsByBloomDifficulty } = data;
+  // If no data or empty graphs, show a message
+  const isEmpty = !data || Object.values(data).every((arr: any) => arr.length === 0);
+  if (isEmpty)
+    return (
+      <div className="text-center py-20 text-gray-500">
+        The selected design pattern is inactive or no data is available. Graphs cannot be displayed.
+      </div>
+    );
+
+  const { bloomRadar, questionSections, questionsByBloomDifficulty } = data;
 
   // -------------------------------
   // Question Sections Polar Chart

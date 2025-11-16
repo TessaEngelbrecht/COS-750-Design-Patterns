@@ -28,6 +28,20 @@ export type EducatorOverviewGraphData = {
   interventions: InterventionGraphItem[];
 };
 
+const emptyGraphData: EducatorOverviewGraphData = {
+  scoreDistribution: [],
+  questionAccuracy: [],
+  bloomRadar: [],
+  questionsByBloomDifficulty: [],
+  questionSections: [],
+  combinedData: [],
+  practiceTrend: [],
+  practiceVsFinalBloom: [],
+  practiceDifficultyOverAttempts: [],
+  practiceBloomOverAttempts: [],
+  interventions: [],
+};
+
 const mapError = (e: PostgrestError) => ({ status: e.code || "SUPABASE_ERROR", error: e.message });
 
 export const educatorOverviewApi = createApi({
@@ -35,9 +49,22 @@ export const educatorOverviewApi = createApi({
   baseQuery: fakeBaseQuery(),
   tagTypes: ["OverviewGraphs"],
   endpoints: (builder) => ({
-    getGraphsData: builder.query<EducatorOverviewGraphData, void>({
-      async queryFn() {
+    getGraphsData: builder.query<EducatorOverviewGraphData, { patternId?: string } | void>({
+      async queryFn(arg) {
+        const patternId = arg?.patternId;
         try {
+          if (patternId) {
+            const { data: patternData, error: patternError } = await supabase
+              .from("design_patterns")
+              .select("id, active")
+              .eq("id", patternId)
+              .single();
+
+            if (patternError) return { error: mapError(patternError) };
+            if (!patternData?.active) {
+              return { data: {...emptyGraphData} };
+            }
+          }
           // -----------------------------------------------------------
           // 1️⃣ Lookup Quiz Type IDs
           // -----------------------------------------------------------

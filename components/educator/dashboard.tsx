@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment, useEffect } from "react";
+import { useState, Fragment } from "react";
 import OverviewTab from "./tabs/overview-tab";
 import StudentsTab from "./tabs/students-tab";
 import QuestionsTab from "./tabs/questions-tab";
@@ -18,17 +18,12 @@ export default function EducatorDashboard({ user, router }: DashboardProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedPatternId, setSelectedPatternId] = useState<string | undefined>(undefined);
 
-  const { data: stats, isLoading } = useGetStatsQuery();
-  const { data: patterns, isLoading: patternsLoading } = useGetDesignPatternsQuery();
-
-  const { data: graphsData, isLoading: graphsLoading, refetch: refetchGraphs } = useGetGraphsDataQuery(
-    { patternId: selectedPatternId ?? "" },
-    { skip: activeTab !== "overview" }
+  // Pass selectedPatternId as argument so RTK Query refetches automatically when it changes
+  const { data: stats, isLoading: statsLoading } = useGetStatsQuery(
+    { patternId: selectedPatternId }
   );
 
-  useEffect(() => {
-    if (activeTab === "overview") refetchGraphs();
-  }, [selectedPatternId, activeTab, refetchGraphs]);
+  const { data: patterns, isLoading: patternsLoading } = useGetDesignPatternsQuery();
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -105,26 +100,26 @@ export default function EducatorDashboard({ user, router }: DashboardProps) {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="metric-card border-l-8 border-2 border-teal-600">
-            <div className="text-3xl font-bold text-teal-600">{isLoading ? "..." : stats?.totalStudents ?? 0}</div>
+            <div className="text-3xl font-bold text-teal-600">{statsLoading ? "..." : stats?.totalStudents ?? 0}</div>
             <p className="text-sm text-gray-600">Total Students</p>
           </div>
 
           <div className="metric-card border-l-8 border-2 border-pink-500">
             <div className="text-3xl font-bold text-pink-500">
-              {isLoading ? "..." : `${stats?.avgProgress?.toFixed(0) ?? 0}%`}
+              {statsLoading ? "..." : `${stats?.avgProgress?.toFixed(0) ?? 0}%`}
             </div>
             <p className="text-sm text-gray-600">AVG Practice Quiz</p>
           </div>
 
           <div className="metric-card border-l-8 border-2 border-green-500">
             <div className="text-3xl font-bold text-green-500">
-              {isLoading ? "..." : `${stats?.avgScore?.toFixed(0) ?? 0}%`}
+              {statsLoading ? "..." : `${stats?.avgScore?.toFixed(0) ?? 0}%`}
             </div>
             <p className="text-sm text-gray-600">AVG Final Quiz</p>
           </div>
 
           <div className="metric-card border-l-8 border-2 border-red-500">
-            <div className="text-3xl font-bold text-red-500">{isLoading ? "..." : stats?.atRiskCount ?? 0}</div>
+            <div className="text-3xl font-bold text-red-500">{statsLoading ? "..." : stats?.atRiskCount ?? 0}</div>
             <p className="text-sm text-gray-600">At Risk</p>
           </div>
         </div>
@@ -149,9 +144,9 @@ export default function EducatorDashboard({ user, router }: DashboardProps) {
 
           {/* Tab Content */}
           <div className="p-8">
-            {activeTab === "overview" && <OverviewTab data={graphsData} isLoading={graphsLoading} />}
+            {activeTab === "overview" && <OverviewTab patternId={selectedPatternId} />}
             {activeTab === "students" && <StudentsTab />}
-            {activeTab === "learning-areas" && <LearningAreasTab data={graphsData} isLoading={graphsLoading} />}
+            {activeTab === "learning-areas" && <LearningAreasTab patternId={selectedPatternId} />}
             {activeTab === "questions" && <QuestionsTab />}
           </div>
         </div>
