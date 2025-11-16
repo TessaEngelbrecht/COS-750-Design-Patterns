@@ -28,9 +28,6 @@ export function PracticeFeedbackPage({ attemptId, onNext, onRetake }: PracticeFe
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ------------------------------------------------------------
-  // LOAD ATTEMPT FROM API
-  // ------------------------------------------------------------
   useEffect(() => {
     async function loadAttempt() {
       try {
@@ -50,15 +47,12 @@ export function PracticeFeedbackPage({ attemptId, onNext, onRetake }: PracticeFe
     loadAttempt();
   }, [attemptId]);
 
-  // ------------------------------------------------------------
-  // Loading + error UI
-  // ------------------------------------------------------------
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-slate-600">
-        <div>
+      <div className="flex items-center justify-center min-h-screen text-slate-600 px-4">
+        <div className="text-center">
           <div className="animate-spin h-12 w-12 border-b-2 border-teal-700 mx-auto mb-4 rounded-full"></div>
-          Loading results…
+          <p>Loading results…</p>
         </div>
       </div>
     );
@@ -66,31 +60,25 @@ export function PracticeFeedbackPage({ attemptId, onNext, onRetake }: PracticeFe
 
   if (error) {
     return (
-      <Card className="p-6 bg-red-50 border-red-500 max-w-md mx-auto mt-20">
-        <h2 className="font-bold text-red-700 text-xl mb-2">Error</h2>
-        <p>{error}</p>
+      <Card className="p-4 sm:p-6 bg-red-50 border-red-500 max-w-md mx-auto mt-10 sm:mt-20 mx-4">
+        <h2 className="font-bold text-red-700 text-lg sm:text-xl mb-2">Error</h2>
+        <p className="text-sm sm:text-base">{error}</p>
       </Card>
     );
   }
 
   if (!questions.length) {
     return (
-      <div className="text-center text-slate-600 mt-20">
-        No results found for this attempt.
+      <div className="text-center text-slate-600 mt-10 sm:mt-20 px-4">
+        <p>No results found for this attempt.</p>
       </div>
     );
   }
 
-  // ------------------------------------------------------------
-  // Score calculations
-  // ------------------------------------------------------------
   const total = questions.length;
   const correct = questions.filter((q) => q.is_correct).length;
   const scorePercentage = Math.round((correct / total) * 100);
 
-  // ------------------------------------------------------------
-  // Section performance
-  // ------------------------------------------------------------
   const sectionPerformance: Record<string, { correct: number; total: number }> = {};
 
   questions.forEach((q) => {
@@ -105,9 +93,6 @@ export function PracticeFeedbackPage({ attemptId, onNext, onRetake }: PracticeFe
     .filter(([_, perf]) => (perf.correct / perf.total) * 100 < 70)
     .map(([section]) => section);
 
-  // ------------------------------------------------------------
-  // Formatting helpers
-  // ------------------------------------------------------------
   function formatUserAnswer(q: FeedbackQuestion) {
     const ans = q.user_answer;
     if (!ans) return "No answer";
@@ -145,50 +130,47 @@ export function PracticeFeedbackPage({ attemptId, onNext, onRetake }: PracticeFe
     return ca.answer ?? "";
   }
 
-  // ------------------------------------------------------------
-  // MAIN UI
-  // ------------------------------------------------------------
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-8">
       {/* SCORE CARD */}
-      <Card className="p-8 border-2 border-teal-700 bg-white mb-8">
+      <Card className="p-6 sm:p-8 border-2 border-teal-700 bg-white mb-6 sm:mb-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">
             Practice Quiz Results
           </h2>
-          <div className="flex items-center justify-center gap-6 my-6">
-            <div className="text-6xl font-bold text-teal-700">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 my-6">
+            <div className="text-5xl sm:text-6xl font-bold text-teal-700">
               {scorePercentage}%
             </div>
-            <div className="text-left">
-              <p className="text-2xl font-semibold text-slate-800">
+            <div className="text-center sm:text-left">
+              <p className="text-xl sm:text-2xl font-semibold text-slate-800">
                 {correct} / {total}
               </p>
-              <p className="text-lg text-slate-600">Correct</p>
+              <p className="text-base sm:text-lg text-slate-600">Correct</p>
             </div>
           </div>
 
-          <p className="text-lg text-slate-700 mb-4">
+          <p className="text-base sm:text-lg text-slate-700 mb-4">
             {scorePercentage >= 90
               ? "Excellent work!"
               : scorePercentage >= 70
               ? "Good job! Review below to strengthen key areas."
               : scorePercentage >= 50
-              ? "Keep practicing — you’re improving!"
+              ? "Keep practicing — you're improving!"
               : "Review the material and try again."}
           </p>
 
           {weakSections.length > 0 && (
             <div className="mt-6 p-4 bg-amber-50 border-2 border-amber-300 rounded-lg">
               <div className="flex items-start gap-3">
-                <TrendingUp className="w-5 h-5 text-amber-700 mt-1" />
-                <div>
-                  <h3 className="font-semibold text-amber-900 mb-2">
+                <TrendingUp className="w-5 h-5 text-amber-700 mt-1 flex-shrink-0" />
+                <div className="text-left">
+                  <h3 className="font-semibold text-amber-900 mb-2 text-sm sm:text-base">
                     Areas for Improvement:
                   </h3>
-                  <ul className="list-disc list-inside text-sm text-amber-800 space-y-1">
+                  <ul className="list-disc list-inside text-xs sm:text-sm text-amber-800 space-y-1">
                     {weakSections.map((sec) => (
-                      <li key={sec}>
+                      <li key={sec} className="break-words">
                         {sec} –{" "}
                         {Math.round(
                           (sectionPerformance[sec].correct /
@@ -207,20 +189,22 @@ export function PracticeFeedbackPage({ attemptId, onNext, onRetake }: PracticeFe
       </Card>
 
       {/* SECTION PERFORMANCE */}
-      <Card className="p-6 border-2 border-slate-200 mb-6">
-        <h3 className="text-xl font-bold text-slate-900 mb-4">
+      <Card className="p-4 sm:p-6 border-2 border-slate-200 mb-6">
+        <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-4">
           Performance by Section
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {Object.entries(sectionPerformance).map(([section, perf]) => {
             const pct = Math.round((perf.correct / perf.total) * 100);
             return (
               <div
                 key={section}
-                className="p-4 bg-slate-50 rounded-lg border border-slate-200"
+                className="p-3 sm:p-4 bg-slate-50 rounded-lg border border-slate-200"
               >
-                <h4 className="font-semibold text-slate-800 mb-2">{section}</h4>
-                <div className="flex items-center gap-3">
+                <h4 className="font-semibold text-slate-800 mb-2 text-sm sm:text-base break-words">
+                  {section}
+                </h4>
+                <div className="flex items-center gap-2 sm:gap-3">
                   <div className="flex-1 bg-slate-200 rounded-full h-2">
                     <div
                       className={`h-2 rounded-full ${
@@ -233,7 +217,7 @@ export function PracticeFeedbackPage({ attemptId, onNext, onRetake }: PracticeFe
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <span className="text-sm font-semibold text-slate-700 min-w-[60px]">
+                  <span className="text-xs sm:text-sm font-semibold text-slate-700 whitespace-nowrap">
                     {perf.correct}/{perf.total} ({pct}%)
                   </span>
                 </div>
@@ -244,7 +228,7 @@ export function PracticeFeedbackPage({ attemptId, onNext, onRetake }: PracticeFe
       </Card>
 
       {/* DETAILED REVIEW */}
-      <h3 className="text-2xl font-bold text-slate-900 mb-4">
+      <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4">
         Detailed Review
       </h3>
 
@@ -252,47 +236,47 @@ export function PracticeFeedbackPage({ attemptId, onNext, onRetake }: PracticeFe
         {questions.map((q, index) => (
           <Card
             key={q.question_id}
-            className={`p-6 border-2 ${
+            className={`p-4 sm:p-6 border-2 ${
               q.is_correct ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50"
             }`}
           >
-            <div className="flex items-start gap-4">
-              <div>
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="flex-shrink-0">
                 {q.is_correct ? (
-                  <CheckCircle2 className="w-8 h-8 text-green-600" />
+                  <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" />
                 ) : (
-                  <XCircle className="w-8 h-8 text-red-600" />
+                  <XCircle className="w-6 h-6 sm:w-8 sm:h-8 text-red-600" />
                 )}
               </div>
 
-              <div className="flex-1">
-                <div className="flex items-start justify-between mb-2">
-                  <h4 className="font-bold text-slate-900">
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-2 gap-2">
+                  <h4 className="font-bold text-slate-900 text-sm sm:text-base">
                     Question {index + 1}
                   </h4>
-                  <div className="flex gap-2 opacity-80">
-                    <span className="text-xs px-2 py-1 bg-white rounded border border-slate-300">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-xs px-2 py-1 bg-white rounded border border-slate-300 whitespace-nowrap">
                       {q.section}
                     </span>
-                    <span className="text-xs px-2 py-1 bg-white rounded border border-slate-300">
+                    <span className="text-xs px-2 py-1 bg-white rounded border border-slate-300 whitespace-nowrap">
                       {q.bloom_level}
                     </span>
                   </div>
                 </div>
 
-                <p className="text-slate-800 mb-3 font-medium">
+                <p className="text-slate-800 mb-3 font-medium text-sm sm:text-base break-words">
                   {q.question_text}
                 </p>
 
                 {q.question_data?.code_snippet && (
                   <Card className="bg-slate-900 text-white p-3 font-mono text-xs mb-3 overflow-x-auto rounded">
-                    <pre className="whitespace-pre-wrap">
+                    <pre className="whitespace-pre-wrap break-words">
                       {q.question_data.code_snippet.replace(/\\n/g, "\n")}
                     </pre>
                   </Card>
                 )}
 
-                <p className="text-gray-700 text-sm">
+                <p className="text-gray-700 text-xs sm:text-sm break-words">
                   <strong>Your answer:</strong>{" "}
                   <span
                     className={q.is_correct ? "text-green-700" : "text-red-700"}
@@ -302,7 +286,7 @@ export function PracticeFeedbackPage({ attemptId, onNext, onRetake }: PracticeFe
                 </p>
 
                 {!q.is_correct && (
-                  <p className="text-gray-700 text-sm">
+                  <p className="text-gray-700 text-xs sm:text-sm break-words">
                     <strong>Correct answer:</strong>{" "}
                     <span className="text-green-700">
                       {formatCorrectAnswer(q)}
@@ -311,7 +295,7 @@ export function PracticeFeedbackPage({ attemptId, onNext, onRetake }: PracticeFe
                 )}
 
                 <p
-                  className={`mt-1 text-sm font-semibold ${
+                  className={`mt-1 text-xs sm:text-sm font-semibold break-words ${
                     q.is_correct ? "text-green-700" : "text-red-700"
                   }`}
                 >
@@ -324,26 +308,23 @@ export function PracticeFeedbackPage({ attemptId, onNext, onRetake }: PracticeFe
       </div>
 
       {/* ACTION BUTTONS */}
-      <div className="flex flex-col sm:flex-row gap-4">
-  {/* Retake - Secondary action */}
-  <Button
-    onClick={onRetake}
-    variant="outline"
-    className="flex-1 py-6 text-lg border-2 border-teal-700 text-teal-700 hover:bg-teal-50 rounded-lg font-bold"
-  >
-    <RotateCcw className="w-5 h-5 mr-2" />
-    Try Another Practice Quiz
-  </Button>
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+        <Button
+          onClick={onRetake}
+          variant="outline"
+          className="flex-1 py-4 sm:py-6 text-base sm:text-lg border-2 border-teal-700 text-teal-700 hover:bg-teal-50 rounded-lg font-bold"
+        >
+          <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+          Try Another Practice Quiz
+        </Button>
 
-  {/* Continue - Primary action */}
-  <Button
-    onClick={onNext}
-    className="flex-1 py-6 text-lg bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-bold"
-  >
-    Continue to UML Builder
-  </Button>
-</div>
-
+        <Button
+          onClick={onNext}
+          className="flex-1 py-4 sm:py-6 text-base sm:text-lg bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-bold"
+        >
+          Continue to UML Builder
+        </Button>
+      </div>
     </div>
   );
 }
