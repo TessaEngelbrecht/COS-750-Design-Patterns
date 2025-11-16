@@ -2,6 +2,10 @@
 
 A comprehensive Next.js web application for teaching the Observer design pattern through interactive learning, quizzes, and visual UML diagram building.
 
+## Live Site
+
+https://cos-750-design-patterns.vercel.app
+
 ## Project Overview
 
 This application bridges the gap between theoretical understanding and practical application of the Observer design pattern by providing:
@@ -18,54 +22,7 @@ This application bridges the gap between theoretical understanding and practical
 - **Font**: Poppins from Google Fonts
 - **State Management**: React hooks with localStorage for mock data
 - **UI Components**: shadcn/ui components
-
-## Project Structure
-
-\`\`\`
-app/
-├── layout.tsx                 # Root layout with Poppins font
-├── globals.css               # Tailwind config and design tokens
-├── page.tsx                  # Authentication gateway (login/signup)
-├── educator/
-│   └── dashboard/
-│       ├── page.tsx          # Educator dashboard entry
-│       └── layout.tsx        # Educator layout wrapper
-└── student/
-    ├── layout.tsx            # Student layout wrapper
-    ├── dashboard/
-    │   └── page.tsx          # Student home dashboard
-    ├── pre-quiz/
-    │   └── page.tsx          # Diagnostic pre-assessment
-    ├── learning/
-    │   └── page.tsx          # Learning materials (overview, videos, UML, code)
-    ├── practice/
-    │   └── page.tsx          # Practice quiz results
-    ├── uml-builder/
-    │   └── page.tsx          # Interactive UML diagram builder
-    ├── cheat-sheet/
-    │   └── page.tsx          # Observer pattern reference guide
-    ├── quiz/
-    │   └── page.tsx          # Final assessment quiz
-    └── results/
-        └── page.tsx          # Results and performance analytics
-
-components/
-├── auth/
-│   ├── login-page.tsx        # Login form with role selection
-│   └── signup-page.tsx       # Registration form
-├── educator/
-│   ├── dashboard.tsx         # Main educator dashboard with tabs
-│   └── tabs/
-│       ├── overview-tab.tsx  # Charts and analytics
-│       ├── students-tab.tsx  # Student list with expandable details
-│       ├── questions-tab.tsx # Quiz question management
-│       └── learning-areas-tab.tsx # Performance by learning area
-├── uml-builder/
-│   └── index.tsx             # Drag-and-drop UML diagram builder
-├── quiz-card.tsx             # Reusable question card component
-├── step-indicator.tsx        # 5-step progress indicator
-└── ui/                       # shadcn/ui components (default)
-\`\`\`
+-  **Deployment** Vercel
 
 ## Key Features
 
@@ -130,20 +87,6 @@ components/
    - Horizontal progress bars for each level
    - Percentage and question count
 
-## Authentication
-
-Mock authentication system using localStorage:
-
-- **Demo Credentials (Student)**:
-  - Email: designwithdesigners@gmail.com
-  - Password: DesignWITHdesigners12345
-
-- **Demo Credentials (Educator)**:
-  - Role: Educator
-  - Same credentials as above
-
-Users are routed to appropriate dashboards based on role (student/educator).
-
 ## Design System
 
 ### Colors
@@ -157,57 +100,75 @@ Users are routed to appropriate dashboards based on role (student/educator).
 - Line height: 1.5 for body text
 
 ### Layout
-- Mobile-first responsive design
+- Desktop-first responsive design
 - Flexbox for most layouts
 - CSS Grid for complex 2D layouts
 - Consistent spacing using Tailwind scale
 
-## Getting Started
+### Lookup Tables
+
+- `bloom_level` - Remember, Understand, Apply, Analyze, Evaluate, Create
+- `difficulty_level` - Easy, Medium, Hard
+- `question_format` - multiple-choice, select-multiple, fill-in-blank, identify-error
+- `quiz_type` - Practice Quiz, Final Quiz
+- `sections` - Theory & Concepts, Code Implementation, Pattern Participants, UML Diagrams
+
+
+## Setup
+
+### Prerequisites
+
+- Node.js 18 or higher
+- npm or pnpm
 
 ### Installation
 
-\`\`\`bash
-# Clone the repository
-git clone <repository-url>
+1. **Clone the repo**
 
-# Install dependencies
+git clone https://github.com/TessaEngelbrecht/COS-750-Design-Patterns.git
+cd COS-750-Design-Patterns
+
+
+2. **Install dependencies**
+
 npm install
 
-# Run development server
-npm run dev
-\`\`\`
 
-Visit `http://localhost:3000` to see the application.
+3. **Set up environment variables**
+
+Create a `.env.local` file in the root directory:
+
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+
+Get these from your Supabase project dashboard under **Settings > API**.
+
+4. **Run the development server**
+
+npm run dev
+
+
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Building for Production
 
-\`\`\`bash
 npm run build
-npm run start
-\`\`\`
+npm start
 
-## Mock Data
 
-The application uses mock data stored in component state and localStorage:
+## Authentication
 
-- Quiz questions with explanations
-- Student performance metrics
-- Bloom's taxonomy classifications
-- Learning materials content
+Managed through Supabase Auth. Email/password authentication is set up by default.
 
-When connecting to a real backend, replace localStorage calls and mock data with API calls to your database.
+## Mobile Support
 
-## Integration Points
+The app is fully responsive. The lesson navigation adapts to mobile with a tab + dropdown interface instead of the desktop sidebar.
 
-Ready to connect to your backend for:
+## Deployment
 
-- User authentication (replace localStorage)
-- Quiz data and questions
-- Student performance tracking
-- Learning materials (videos, documents)
-- Real-time analytics
+Deployed on Vercel. Make sure to add your environment variables in the Vercel dashboard under Project Settings > Environment Variables.
 
-All API integration points are marked with TODO comments for easy identification.
 
 ## Accessibility
 
@@ -232,40 +193,13 @@ All API integration points are marked with TODO comments for easy identification
 - Responsive design for all screen sizes
 - Smooth animations and transitions
 
-## Future Enhancements
 
-1. Real database integration (PostgreSQL/MongoDB)
-2. User authentication (Supabase/Auth0)
-3. Actual video hosting
-4. Export analytics as PDF/CSV
-5. Real-time notifications
-6. Multiple design pattern modules
-7. Mobile app version
-8. Dark mode support
-9. Internationalization (i18n)
-10. Advanced analytics and reporting
+## Team
 
-## Troubleshooting
-
-### Authentication Issues
-- Check browser console for errors
-- Verify localStorage is enabled
-- Clear browser cache and try again
-
-### Chart Display Issues
-- Ensure Recharts is properly installed
-- Check responsive container dimensions
-- Verify data structure matches chart expectations
-
-### Styling Issues
-- Rebuild Tailwind CSS: `npm run build`
-- Clear `.next` folder: `rm -rf .next`
-- Ensure globals.css is imported in layout.tsx
-
-## Support & Feedback
-
-For issues or suggestions, please reach out to the development team or open an issue in the repository.
-
-## License
-
-This project is part of the COS 214 Software Modeling course at the University of Pretoria.
+| Name | GitHub | Email |
+|------|--------|-------|
+| Tessa Engelbrecht | TessaEngelbrecht | u22633601@tuks.co.za|
+| Mignon Erasmus | MignonErasmus| u22492586@tuks.co.za|
+| Xadrian van Heerden | XadrianvHeerden| u22699572@tuks.co.za|
+| Cathryn Ackerman | CatAcker| u24076491@tuks.co.za|
+| Joelle Pangu | JoellePangu| u25729790@tuks.co.za|
