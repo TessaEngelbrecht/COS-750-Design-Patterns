@@ -7,11 +7,12 @@ function pct(n: number, d: number) {
 
 export async function GET(
   req: Request,
-  context: { params: Promise<{ patternId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createServerSupabase();
-    const { patternId } = await context.params;
+    const { id } = await context.params;
+    const patternId = id;
 
     // -------------------------------
     // 1️⃣ Auth

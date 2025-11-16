@@ -5,7 +5,7 @@ import { getUser } from "@/lib/auth/get-user";
 
 export async function GET(
   req: Request,
-  context: { params: Promise<{ attemptId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createServerSupabase();
@@ -17,7 +17,7 @@ export async function GET(
       );
     const studentId = user.profile.id;
 
-    const attemptId = (await context.params).attemptId;
+    const attemptId = (await context.params).id;
 
     const { data: attempt, error: aErr } = await supabase
       .from("quiz_attempt")
