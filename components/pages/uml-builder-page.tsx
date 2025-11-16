@@ -883,37 +883,41 @@ function UMLBuilderContent({ onNext }: UMLBuilderPageProps) {
                   </button>
                 </div>
 
-                <div className="flex-1 bg-blue-50 rounded-lg border-2 border-teal-700 mb-4">
-                  <ReactFlow
-                    nodes={nodes.map((node) => ({
-                      ...node,
-                      data: {
-                        ...node.data,
-                        handleNodeSelect,
-                      },
-                    }))}
-                    edges={edges as Edge[]}
-                    onNodesChange={onNodesChange}
-                    onEdgesChange={onEdgesChange}
-                    nodeTypes={nodeTypes}
-                    fitView
-                    onEdgeClick={(event, edge) => {
-                      setSelectedEdgeId(edge.id);
-                      const edgeData = edge.data || {
-                        relationType: "association",
-                        sourceClass: "",
-                        targetClass: "",
-                      };
-                      showHelp(
-                        "Edge Selected",
-                        `Click line routing options on the left to change how this connection flows.\n\nRoutings:\n- Smooth: curved lines\n- Straight: direct lines\n- Bezier: smooth curves\n- Step: right-angle turns`
-                      );
-                    }}
-                  >
-                    <Background color="#93C5FD" gap={16} />
-                    <Controls />
-                  </ReactFlow>
-                </div>
+                <div
+  className="bg-blue-50 rounded-lg border-2 border-teal-700 mb-4"
+  style={{ width: '100%', height: '600px' }}
+>
+  <ReactFlow
+    nodes={nodes.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        handleNodeSelect,
+      },
+    }))}
+    edges={edges as Edge[]}
+    onNodesChange={onNodesChange}
+    onEdgesChange={onEdgesChange}
+    nodeTypes={nodeTypes}
+    fitView
+    onEdgeClick={(event, edge) => {
+      setSelectedEdgeId(edge.id);
+      const edgeData = edge.data || {
+        relationType: "association",
+        sourceClass: "",
+        targetClass: "",
+      };
+      showHelp(
+        "Edge Selected",
+        `Click line routing options on the left to change how this connection flows.\n\nRoutings:\n- Smooth: curved lines\n- Straight: direct lines\n- Bezier: smooth curves\n- Step: right-angle turns`
+      );
+    }}
+  >
+    <Background color="#93C5FD" gap={16} />
+    <Controls />
+  </ReactFlow>
+</div>
+
 
                 {edges.length > 0 && (
                   <Card className="p-3 mb-4 bg-gray-50 overflow-y-auto">

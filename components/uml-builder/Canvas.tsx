@@ -9,7 +9,6 @@ import {
   Edge,
   NodeChange,
   EdgeChange,
-  useReactFlow,
 } from '@xyflow/react'
 import { UMLNodeData, UMLEdgeData } from './types'
 
@@ -49,10 +48,10 @@ export function Canvas({
 
   return (
     <div className="col-span-3">
-      <Card className="p-6 border-2 border-teal-700 h-full flex flex-col">
+      <Card className="p-4 sm:p-6 border-2 border-teal-700">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <p className="text-teal-700 font-semibold text-sm">Observer Pattern UML Diagram</p>
+            <p className="text-teal-700 font-semibold text-sm sm:text-base">Observer Pattern UML Diagram</p>
             <p className="text-xs text-gray-600">
               Classes: {nodes.length} | Relationships: {edges.length}
             </p>
@@ -68,7 +67,14 @@ export function Canvas({
           </button>
         </div>
 
-        <div className="flex-1 bg-blue-50 rounded-lg border-2 border-teal-700 mb-4">
+        {/* CRITICAL: Both width and height MUST be set */}
+        <div
+          className="bg-blue-50 rounded-lg border-2 border-teal-700 mb-4"
+          style={{
+            width: '100%',
+            height: '600px'
+          }}
+        >
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -87,7 +93,7 @@ export function Canvas({
         </div>
 
         {edges.length > 0 && (
-          <Card className="p-3 mb-4 bg-gray-50 max-h-20 overflow-y-auto">
+          <Card className="p-3 mb-4 bg-gray-50 max-h-32 overflow-y-auto">
             <p className="text-xs font-bold text-gray-700 mb-2">Relationships:</p>
             <div className="space-y-1">
               {edges.map(edge => {
@@ -105,9 +111,9 @@ export function Canvas({
                       selectedEdgeId === edge.id ? 'ring-2 ring-teal-500' : ''
                     }`}
                   >
-                    <span className="font-mono">
+                    <span className="font-mono truncate flex-1">
                       {sourceClassName} 
-                      {" "}{edgeData?.relationType === 'inheritance' ? '◁──' : edgeData?.relationType === 'composition' ? '◆──' : edgeData?.relationType === 'dependency' ? '┄┄>' : '──>'} 
+                      {" "}{edgeData?.relationType === 'inheritance' ? '◁──' : edgeData?.relationType === 'composition' ? '◆──' : edgeData?.relationType === 'dependency' ? '┄┄>' : '──>'}{" "}
                       {targetClassName}
                     </span>
                     <button
@@ -115,7 +121,7 @@ export function Canvas({
                         e.stopPropagation()
                         onRemoveEdge(edge.id)
                       }}
-                      className="text-red-500 hover:text-red-700 ml-2"
+                      className="text-red-500 hover:text-red-700 ml-2 flex-shrink-0"
                     >
                       Remove
                     </button>
@@ -154,7 +160,7 @@ export function Canvas({
           )}
         </Card>
 
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <Button 
             onClick={onValidate}
             className="flex-1 bg-teal-700 text-white hover:bg-teal-800 font-bold py-3 rounded-lg"
