@@ -39,8 +39,8 @@ export default function StructureSection() {
         <h3 className="text-lg font-semibold text-teal-700 mt-6 mb-3">
           Code Structure
         </h3>
-        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
-{`interface Subject {
+        <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm overflow-x-auto border border-gray-800 shadow-md font-mono">
+          <code>{`interface Subject {
   attach(o: Observer): void;
   detach(o: Observer): void;
   notify(): void;
@@ -48,7 +48,7 @@ export default function StructureSection() {
 
 interface Observer {
   update(subject: Subject): void;
-}`}
+}`}</code>
         </pre>
       </div>
     </LessonSectionWrapper>
