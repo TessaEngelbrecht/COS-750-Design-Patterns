@@ -492,6 +492,16 @@ export async function GET(
     if (attemptErr)
       return NextResponse.json({ error: attemptErr.message });
 
+    const { error: qpirErr } = await supabase
+      .from("quiz_attempt_pattern")
+      .insert({
+        attempt_id: attempt.id,
+        pattern_id: patternId,
+      });
+
+    if (qpirErr) {
+      return NextResponse.json({ error: qpirErr.message }, { status: 500 });
+    }
     // ---------------------------------------------------------
     // 13. Response
     // ---------------------------------------------------------
