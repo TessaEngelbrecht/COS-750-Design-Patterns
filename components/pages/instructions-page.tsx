@@ -127,8 +127,9 @@ import ExampleSection from "./lesson/ExampleSection"
 import ExercisesSection from "./lesson/ExercisesSection"
 import { LessonPageWithTTS } from "@/components/tts/LessonPageWithTTS"
 
-// PDF Generation Function - Only includes loaded sections
+// PDF Generation Function - With Image Support
 const generateLessonPDF = () => {
+
   const sections = [
     { title: 'Introduction', tag: 'observer-introduction' },
     { title: 'Identification', tag: 'observer-identification' },
@@ -144,6 +145,7 @@ const generateLessonPDF = () => {
   const loadedSections = sections.filter(section => {
     const element = document.querySelector(`[data-tag="${section.tag}"]`);
     const hasContent = element && element.innerHTML.trim().length > 20;
+    //console.log(`📄 ${section.title}:`, hasContent ? '✅ Found' : '❌ Skipped');
     return hasContent;
   });
 
@@ -254,12 +256,14 @@ const generateLessonPDF = () => {
           color: #14b8a6;
           font-style: italic;
         }
-        .info-box {
-          background: #ecfdf5;
-          border-left: 4px solid #14b8a6;
-          padding: 16px;
-          margin: 16px 0;
-          border-radius: 4px;
+        img {
+          max-width: 100%;
+          height: auto;
+          display: block;
+          margin: 20px auto;
+          border: 2px solid #99f6e4;
+          border-radius: 8px;
+          page-break-inside: avoid;
         }
         .content-note {
           background: #fef3c7;
@@ -282,7 +286,7 @@ const generateLessonPDF = () => {
           h2 {
             page-break-after: avoid;
           }
-          pre {
+          pre, img {
             page-break-inside: avoid;
           }
         }
@@ -300,7 +304,7 @@ const generateLessonPDF = () => {
     const missingSections = sections
       .filter(s => !loadedSections.find(l => l.tag === s.tag))
       .map(s => s.title);
-
+    
     htmlContent += `
       <div class="content-note">
         <p><strong>Note:</strong> This PDF contains only the sections that were loaded in your browser.</p>
@@ -313,20 +317,30 @@ const generateLessonPDF = () => {
   // Add only loaded sections
   loadedSections.forEach(section => {
     const element = document.querySelector(`[data-tag="${section.tag}"]`);
-
+    
     if (element) {
       htmlContent += `<div class="section">`;
       htmlContent += `<h2>${section.title}</h2>`;
-
+      
       // Clone the element to avoid modifying the original
       const clone = element.cloneNode(true) as HTMLElement;
-
+      
       // Remove any interactive elements like buttons
       clone.querySelectorAll('button').forEach(btn => btn.remove());
-
+      
+      // Convert Next.js Image components to regular img tags for PDF
+      clone.querySelectorAll('img').forEach(img => {
+        // Get the actual src (Next.js might transform it)
+        const src = img.getAttribute('src');
+        if (src && src.startsWith('/')) {
+          // Convert relative path to absolute URL
+          img.setAttribute('src', window.location.origin + src);
+        }
+      });
+      
       // Get the inner HTML with all formatting preserved
       const content = clone.innerHTML;
-
+      
       htmlContent += content;
       htmlContent += `</div>`;
     }
@@ -353,10 +367,10 @@ const generateLessonPDF = () => {
   printWindow.document.write(htmlContent);
   printWindow.document.close();
 
-  // Trigger print dialog after content loads
+  // Trigger print dialog after content and images load
   setTimeout(() => {
     printWindow.print();
-  }, 250);
+  }, 500); // Increased timeout to allow images to load
 };
 
 
