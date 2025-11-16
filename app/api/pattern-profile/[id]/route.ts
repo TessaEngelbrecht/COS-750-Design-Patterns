@@ -3,12 +3,15 @@ import { createServerSupabase } from "@/lib/supabase/server";
 
 export async function GET(
   req: Request,
-  context: { params: Promise<{ id: string }> }
+  context:
+    | { params: { id: string } }
+    | { params: Promise<{ id: string }> }
 ) {
   const supabase = await createServerSupabase();
 
-  const { id } = await context.params;
-  const patternId = id;
+  // Handle both Promise and non-Promise params
+  const params = await context.params;
+  const patternId = params.id;
 
   // Get user
   const {
