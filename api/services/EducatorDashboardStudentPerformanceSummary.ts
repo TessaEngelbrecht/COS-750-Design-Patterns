@@ -185,7 +185,7 @@ export const educatorDashboardApi = createApi({
             .in("learning_profile.student_id", studentIds);
 
           triggers?.forEach(t => {
-            const s = summaries[t.learning_profile.student_id];
+            const s = summaries[t.learning_profile?.student_id];
             if (!s) return;
 
             const typeId = t.rule_set?.intervention_type?.id ?? "unknown";

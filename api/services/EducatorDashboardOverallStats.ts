@@ -9,20 +9,29 @@ export type DashboardStats = {
   atRiskCount: number;
 };
 
+export type DesignPattern = {
+  id: string;
+  design_pattern: string;
+  description: string | null;
+  icon: string | null;
+  active: boolean | null;
+};
+
 const mapError = (e: PostgrestError) => ({
   status: e.code || "SUPABASE_ERROR",
   error: e.message,
 });
 
+
 export const educatorDashboardStatsApi = createApi({
   reducerPath: "educatorDashboardStatsApi",
   baseQuery: fakeBaseQuery(),
-  tagTypes: ["DashboardStats"],
+  tagTypes: ["DashboardStats", "DesignPatterns"],
   endpoints: (builder) => ({
+
     getStats: builder.query<DashboardStats, void>({
       async queryFn() {
         try {
-          // Fetch all students
           const { data: allStudents, error: allStudentsError } = await supabase
             .from("users")
             .select("id")
@@ -30,13 +39,12 @@ export const educatorDashboardStatsApi = createApi({
 
           if (allStudentsError) {
             console.error("Error fetching total students:", allStudentsError);
+            return { error: mapError(allStudentsError) };
           }
 
           const totalStudents = allStudents?.length ?? 0;
 
-          // Fetch all quiz attempts
-          console.log("Fetching all quiz attempts...");
-          const { data, error } = await supabase
+          const { data: quizAttempts, error: quizError } = await supabase
             .from("quiz_attempt")
             .select(`
               id,
@@ -49,12 +57,12 @@ export const educatorDashboardStatsApi = createApi({
               )
             `);
 
-          if (error) {
-            console.error("Supabase Error fetching quiz_attempt:", error);
-            return { error: mapError(error) };
+          if (quizError) {
+            console.error("Supabase Error fetching quiz_attempt:", quizError);
+            return { error: mapError(quizError) };
           }
 
-          const processedAttempts = (data ?? []).map((attempt: any) => {
+          const processedAttempts = (quizAttempts ?? []).map((attempt: any) => {
             const type = attempt.quiz_type?.quiz_type?.toLowerCase() || "unknown";
             const totalQuestions = attempt.quiz_attempt_item?.length ?? 0;
             const correctAnswers = attempt.quiz_attempt_item?.reduce(
@@ -70,7 +78,6 @@ export const educatorDashboardStatsApi = createApi({
             };
           });
 
-          // Average progress for practice quizzes
           const practiceAttempts = processedAttempts.filter(a => a.type.includes("practice"));
           const avgProgress =
             practiceAttempts.length > 0
@@ -79,13 +86,10 @@ export const educatorDashboardStatsApi = createApi({
                   .reduce((sum, p) => sum + p, 0) / practiceAttempts.length
               : 0;
 
-          // Average score for final quizzes
           const finalAttempts = processedAttempts.filter(a => a.type.includes("final"));
           const finalByStudent: Record<string, any> = {};
           finalAttempts.forEach(a => {
-            if (!finalByStudent[a.student_id]) {
-              finalByStudent[a.student_id] = a;
-            }
+            if (!finalByStudent[a.student_id]) finalByStudent[a.student_id] = a;
           });
 
           const avgScore =
@@ -95,26 +99,26 @@ export const educatorDashboardStatsApi = createApi({
                   .reduce((sum, s) => sum + s, 0) / Object.values(finalByStudent).length
               : 0;
 
-          // Count at-risk students (distinct student_ids)
-          const { data: atRiskData, error: atRiskError } = await supabase
+          const { data: unresolvedData, error: unresolvedError } = await supabase
             .from("intervention_trigger_log")
             .select(`
               learning_profile:learning_profile_id (
                 student_id
               )
             `)
-            .is("resolved", false);
+            .is("resolved", false)
 
-          if (atRiskError) {
-            console.error("Error fetching at-risk students:", atRiskError);
+          if (unresolvedError) {
+            console.error("Error fetching unresolved interventions:", unresolvedError);
+            return { error: mapError(unresolvedError) };
           }
 
           const atRiskStudentIds = new Set(
-            (atRiskData ?? []).map((row: any) => row.learning_profile.student_id)
+            (unresolvedData ?? []).map(row => row.learning_profile.student_id)
           );
-          const atRiskCount = atRiskStudentIds.size;
 
-          console.log("✅ Computed stats:", { totalStudents, avgProgress, avgScore, atRiskCount });
+          const validStudentIds = new Set((allStudents ?? []).map(s => s.id));
+          const atRiskCount = [...atRiskStudentIds].filter(id => validStudentIds.has(id)).length;
 
           return {
             data: {
@@ -131,7 +135,22 @@ export const educatorDashboardStatsApi = createApi({
       },
       providesTags: [{ type: "DashboardStats", id: "LIST" }],
     }),
+
+    getDesignPatterns: builder.query<DesignPattern[], void>({
+      async queryFn() {
+        const { data, error } = await supabase
+          .from("design_patterns")
+          .select("*")
+          .order("design_pattern");
+
+        if (error) return { error: mapError(error) };
+
+        return { data: data ?? [] };
+      },
+      providesTags: [{ type: "DesignPatterns", id: "LIST" }],
+    }),
   }),
 });
 
-export const { useGetStatsQuery } = educatorDashboardStatsApi;
+
+export const { useGetStatsQuery, useGetDesignPatternsQuery } = educatorDashboardStatsApi;
