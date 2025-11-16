@@ -145,7 +145,7 @@ export default function EducatorDashboard({ user, router }: DashboardProps) {
           {/* Tab Content */}
           <div className="p-8">
             {activeTab === "overview" && <OverviewTab patternId={selectedPatternId} />}
-            {activeTab === "students" && <StudentsTab />}
+            {activeTab === "students" && <StudentsTab patternId={selectedPatternId}  />}
             {activeTab === "learning-areas" && <LearningAreasTab patternId={selectedPatternId} />}
             {activeTab === "questions" && <QuestionsTab />}
           </div>

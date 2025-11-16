@@ -52,20 +52,37 @@ export const educatorDashboardApi = createApi({
   baseQuery: fakeBaseQuery(),
   tagTypes: ["StudentPerformance"],
   endpoints: (builder) => ({
-    getStudentsPerformance: builder.query<DashboardListResult, void>({
-      async queryFn() {
-        try {
-          // 1️⃣ Fetch all students
-          const { data: users, error: usersError } = await supabase
-            .from("users")
-            .select("id, first_name, last_name, email")
-            .eq("role", "student");
+getStudentsPerformance: builder.query<DashboardListResult, { patternId?: string } | void>({
+  async queryFn(arg) {
+    const patternId = arg?.patternId;
 
-          if (usersError) return { error: mapError(usersError) };
-          if (!users || users.length === 0) return { data: { rows: [], total: 0 } };
+    try {
+      // 0️⃣ Fetch pattern if provided
+      if (patternId) {
+        const { data: patternData, error: patternError } = await supabase
+          .from("design_patterns")
+          .select("id,active")
+          .eq("id", patternId)
+          .maybeSingle();
 
-          const studentIds = users.map(u => u.id).filter(Boolean);
-          if (!studentIds.length) return { data: { rows: [], total: 0 } };
+        if (patternError) return { error: mapError(patternError) };
+        if (!patternData || !patternData.active) {
+          // inactive pattern → return empty
+          return { data: { rows: [], total: 0 } };
+        }
+      }
+
+      // 1️⃣ Fetch all students
+      const { data: users, error: usersError } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, email")
+        .eq("role", "student");
+
+      if (usersError) return { error: mapError(usersError) };
+      if (!users || users.length === 0) return { data: { rows: [], total: 0 } };
+
+      const studentIds = users.map(u => u.id).filter(Boolean);
+      if (!studentIds.length) return { data: { rows: [], total: 0 } };
 
           // 2️⃣ Fetch quiz attempts
           const { data: attempts, error: attemptsError } = await supabase

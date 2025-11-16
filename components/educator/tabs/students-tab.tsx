@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useGetStudentsPerformanceQuery, useMarkInterventionResolvedMutation } from "@/api/services/EducatorDashboardStudentPerformanceSummary";
 import { Card } from "@/components/ui/card";
@@ -15,8 +15,8 @@ const minutesToHMS = (minutes: number) => {
   return [h, m, s].map(n => n.toString().padStart(2, "0")).join(":");
 };
 
-export default function StudentsTab() {
-  const { data, isLoading, error } = useGetStudentsPerformanceQuery();
+export default function StudentsTab({ patternId }: { patternId?: string }) {
+  const { data, isLoading, error } = useGetStudentsPerformanceQuery({patternId}, { refetchOnMountOrArgChange: true });
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
   const [studentsState, setStudentsState] = useState<any[]>([]);
   const [markResolved, { isLoading: isMarking }] = useMarkInterventionResolvedMutation();
@@ -26,7 +26,14 @@ export default function StudentsTab() {
     return studentsState;
   }, [data, studentsState]);
 
+  useEffect(() => {
+  if (data?.rows) {
+    setStudentsState(data.rows);
+  }
+}, [data?.rows]);
+
   if (isLoading) return <p>Loading student data...</p>;
+  
   if (error) return <p>Error loading students</p>;
 
   const hasUnresolved = (student: any) => student.interventions?.some(i => !i.resolved);
@@ -76,7 +83,14 @@ export default function StudentsTab() {
     <div className="space-y-4">
       <h3 className="text-lg font-bold text-teal-600 mb-4">Student Progress Overview</h3>
 
-      {students.map(student => (
+      {students.length === 0 ? (
+  <div className="text-center py-20 text-gray-500">
+    {patternId
+      ? "The selected design pattern is inactive or has no students."
+      : "No students found."}
+  </div>
+      ) : (
+        students.map(student => (
         <div key={student.student_id} className="border-2 border-gray-200 rounded-lg overflow-hidden">
           <div className="px-6 py-4 flex justify-between items-center">
             <div>
@@ -95,7 +109,7 @@ export default function StudentsTab() {
             </button>
           </div>
 
-          {/* Metrics */}
+          
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pl-6 pb-2">
             <div>
               <p className="text-xs text-gray-500 font-semibold">Final</p>
@@ -119,7 +133,53 @@ export default function StudentsTab() {
             </div>
           </div>
         </div>
-      ))}
+      ))
+      )}
+
+      {/* {students.map(student => (
+        <div key={student.student_id} className="border-2 border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-6 py-4 flex justify-between items-center">
+            <div>
+              <h4 className="font-bold text-teal-700 flex items-center gap-2">
+                {student.full_name}
+                {hasUnresolved(student) && <span className="text-red-600 font-bold">⚠️</span>}
+              </h4>
+              <p className="text-xs text-teal-600">Final: {student.final_quiz_score.toFixed(0)}%</p>
+            </div>
+            <button
+              className="flex items-center gap-2 bg-blue-900 text-white px-4 py-1 rounded-full text-sm font-semibold hover:bg-blue-800"
+              onClick={() => setSelectedStudent(student)}
+            >
+              <img src="/icons/mdi_eye.svg" alt="View" className="h-4 w-4" />
+              <p className="hidden md:block">View Details</p>
+            </button>
+          </div>
+
+          
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pl-6 pb-2">
+            <div>
+              <p className="text-xs text-gray-500 font-semibold">Final</p>
+              <p className="text-sm font-semibold text-teal-600">{student.final_quiz_score.toFixed(0)}%</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-semibold">Practice Quiz</p>
+              <p className="text-sm font-semibold text-green-500">{student.practice_quiz_avg_score.toFixed(0)}%</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-semibold">Practice Attempts</p>
+              <p className="text-sm font-semibold text-orange-600">{student.practice_quiz_attempts}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-semibold">Time Spent</p>
+              <p className="text-sm font-semibold text-blue-600">{student.total_time_spent}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-semibold">Cheat Access</p>
+              <p className="text-sm font-semibold text-purple-600">{student.cheat_sheet_access_count}x</p>
+            </div>
+          </div>
+        </div>
+      ))} */}
 
       <Dialog open={!!selectedStudent} onOpenChange={() => setSelectedStudent(null)}>
         <DialogContent className="w-full max-h-[90vh] bg-white border border-gray-300 shadow-lg overflow-y-auto">
