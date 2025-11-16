@@ -32,8 +32,5 @@ export async function POST(req: Request) {
     role: "student",
   });
 
-  await supabase.auth.getSession();
-
-
   return NextResponse.json({ success: true });
 }
