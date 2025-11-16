@@ -17,9 +17,8 @@ import ExercisesSection from "./lesson/ExercisesSection"
 import { LessonPageWithTTS } from "@/components/tts/LessonPageWithTTS"
 import VideoWithPopover from "../ui/videoPlayer"
 
-// PDF Generation Function - With Image Support
+// PDF Generation Function - With Image Support and Dark Code Blocks
 const generateLessonPDF = () => {
-
   const sections = [
     { title: 'Introduction', tag: 'observer-introduction' },
     { title: 'Identification', tag: 'observer-identification' },
@@ -35,7 +34,6 @@ const generateLessonPDF = () => {
   const loadedSections = sections.filter(section => {
     const element = document.querySelector(`[data-tag="${section.tag}"]`);
     const hasContent = element && element.innerHTML.trim().length > 20;
-    //console.log(`📄 ${section.title}:`, hasContent ? '✅ Found' : '❌ Skipped');
     return hasContent;
   });
 
@@ -112,31 +110,35 @@ const generateLessonPDF = () => {
           line-height: 1.6;
         }
         code {
-          background: #f1f5f9;
-          color: #0f172a;
-          padding: 2px 6px;
+          background: #1f2937;
+          color: #f3f4f6;
+          padding: 3px 8px;
           border-radius: 4px;
-          font-family: 'Courier New', Consolas, monospace;
+          font-family: 'Courier New', Consolas, 'Monaco', monospace;
           font-size: 0.9em;
-          border: 1px solid #e2e8f0;
+          border: 1px solid #374151;
         }
         pre {
-          background: #1e293b;
-          color: #e2e8f0;
+          background: #1f2937;
+          color: #f3f4f6;
           padding: 20px;
           border-radius: 8px;
           overflow-x: auto;
           margin: 16px 0;
           page-break-inside: avoid;
-          border: 1px solid #334155;
+          border: 2px solid #374151;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         pre code {
-          background: none;
-          color: inherit;
+          background: transparent;
+          color: #f3f4f6;
           padding: 0;
           border: none;
           font-size: 13px;
           line-height: 1.6;
+          display: block;
+          white-space: pre-wrap;
+          word-wrap: break-word;
         }
         strong {
           color: #0f766e;
@@ -164,6 +166,13 @@ const generateLessonPDF = () => {
           font-size: 14px;
           color: #92400e;
         }
+        .info-box {
+          background: #ecfdf5;
+          border-left: 4px solid #14b8a6;
+          padding: 16px;
+          margin: 16px 0;
+          border-radius: 4px;
+        }
         @media print {
           body {
             padding: 20px;
@@ -178,6 +187,12 @@ const generateLessonPDF = () => {
           }
           pre, img {
             page-break-inside: avoid;
+          }
+          code, pre {
+            background: #1f2937 !important;
+            color: #f3f4f6 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
         }
       </style>
@@ -220,10 +235,8 @@ const generateLessonPDF = () => {
       
       // Convert Next.js Image components to regular img tags for PDF
       clone.querySelectorAll('img').forEach(img => {
-        // Get the actual src (Next.js might transform it)
         const src = img.getAttribute('src');
         if (src && src.startsWith('/')) {
-          // Convert relative path to absolute URL
           img.setAttribute('src', window.location.origin + src);
         }
       });
@@ -260,7 +273,7 @@ const generateLessonPDF = () => {
   // Trigger print dialog after content and images load
   setTimeout(() => {
     printWindow.print();
-  }, 500); // Increased timeout to allow images to load
+  }, 500);
 };
 
 
