@@ -142,10 +142,16 @@ export default function StudentDashboard({
         );
 
       case "results":
-        return <ResultsPage onNext={() => goTo("feedback")} />;
+        return ( 
+          <ResultsPage
+            patternId={selectedPattern!}
+            onNext={() => goTo("pattern-selection")}
+            // onNext={() => goTo("feedback")} 
+          />
+        );
 
-      case "feedback":
-        return <FeedbackPage onNext={() => goTo("pattern-selection")} />;
+      // case "feedback":
+      //   return <FeedbackPage onNext={() => goTo("pattern-selection")} />;
     }
   };
 
