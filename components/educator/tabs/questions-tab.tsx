@@ -5,7 +5,7 @@ import { AddQuestionModal } from "@/components/educator/AddQuestionModal";
 import { getAllQuestions, deactivateQuestion, activateQuestion } from "@/api/services/AddQuestions";
 import { Pencil, Trash2, CheckCircle, Search, X, Filter, ChevronDown } from "lucide-react";
 
-export default function QuestionsTab() {
+export default function QuestionsTab({ triggerAddQuestion }: QuestionsTabProps) {
   const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null);
   const [questions, setQuestions] = useState<any[]>([]);
   const [filteredQuestions, setFilteredQuestions] = useState<any[]>([]);
@@ -37,6 +37,12 @@ export default function QuestionsTab() {
       setLoading(false);
     }
   };
+useEffect(() => {
+    if (triggerAddQuestion) {
+      setEditingQuestion(null);
+      setShowAddModal(true);
+    }
+  }, [triggerAddQuestion]);
 
   useEffect(() => {
     loadQuestions();
