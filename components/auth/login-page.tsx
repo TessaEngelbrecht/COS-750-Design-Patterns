@@ -181,8 +181,7 @@ export default function LoginPage({
         <p className="text-gray-600 text-center mb-4">Software Modeling</p>
         <div className="space-y-4">
           <p className="text-gray-700 font-medium">
-            In the following app you as a student will be able to see where you are currently at with your knowledge on the design pattern{" "}
-            <strong>OBSERVER</strong>.
+            In the following app you as a student will be able to see where you are currently at with your knowledge on design patterns.
           </p>
           <p className="text-gray-700 font-medium">
             You will be able to test yourself with practice quizzes before taking the final exam assessment.

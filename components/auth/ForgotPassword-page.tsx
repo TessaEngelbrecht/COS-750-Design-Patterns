@@ -51,7 +51,7 @@ export default function ForgotPassword({ onBackToLogin }: ForgotPasswordProps) {
           <p className="text-black text-base mt-0 mb-1">Software Modeling</p>
           <p className="text-black font-bold text-xl mt-2 mb-4">Welcome to COS 214</p>
           <p className="text-black leading-relaxed mt-0">
-            In the following app you as a student will be able to see where you are currently at with your knowledge on the design pattern <b>OBSERVER</b>.
+            In the following app you as a student will be able to see where you are currently at with your knowledge on design patterns.
           </p>
           <p className="text-black mt-4">
             You will be able to test your self with practice quizzes before taking the final exam assessment.
