@@ -31,7 +31,7 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
   const [questions, setQuestions] = useState<any[]>([]);
   const [attemptId, setAttemptId] = useState<string | null>(null);
 
-  const [hasStarted, setHasStarted] = useState(false); // 👈 NEW
+  const [hasStarted, setHasStarted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,9 +46,6 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
   const [questionStart, setQuestionStart] = useState(Date.now());
   const [isSaving, setIsSaving] = useState(false);
 
-  // ------------------------------------------------------------
-  // LOAD QUESTIONS
-  // ------------------------------------------------------------
   async function loadQuiz() {
     try {
       setIsLoading(true);
@@ -61,7 +58,6 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
 
       setAttemptId(data.attemptId);
       setQuestions(data.questions);
-
       setHasStarted(true);
     } catch (err: any) {
       console.error("❌ Load quiz failed:", err);
@@ -71,7 +67,6 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
     }
   }
 
-  // Reset question state when index changes
   useEffect(() => {
     setQuestionStart(Date.now());
     setCurrentAnswer("");
@@ -79,9 +74,6 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
     setFillInBlanks({});
   }, [currentIndex]);
 
-  // ------------------------------------------------------------
-  // Helpers
-  // ------------------------------------------------------------
   const q = questions[currentIndex];
   const isSubmitted = q ? submittedSet.has(q.question_id) : false;
   const isLast = currentIndex === questions.length - 1;
@@ -92,9 +84,6 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
     );
   };
 
-  // ------------------------------------------------------------
-  // SUBMIT ANSWER
-  // ------------------------------------------------------------
   async function handleSubmit() {
     if (!q || !attemptId || isSaving) return;
 
@@ -185,15 +174,12 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
     setCurrentIndex((i) => i + 1);
   };
 
-  // ------------------------------------------------------------
-  // LOADING / ERROR
-  // ------------------------------------------------------------
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-slate-600">
-        <div>
+      <div className="flex items-center justify-center min-h-screen text-slate-600 px-4">
+        <div className="text-center">
           <div className="animate-spin h-12 w-12 border-b-2 border-teal-700 mx-auto mb-4 rounded-full"></div>
-          Loading…
+          <p>Loading…</p>
         </div>
       </div>
     );
@@ -201,42 +187,37 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-6">
-        <Card className="p-6 bg-red-50 border-red-500 max-w-md">
-          <h2 className="font-bold text-red-700 text-xl mb-2">Error</h2>
-          <p>{error}</p>
+      <div className="flex items-center justify-center min-h-screen p-4 sm:p-6">
+        <Card className="p-4 sm:p-6 bg-red-50 border-red-500 max-w-md w-full">
+          <h2 className="font-bold text-red-700 text-lg sm:text-xl mb-2">Error</h2>
+          <p className="text-sm sm:text-base">{error}</p>
         </Card>
       </div>
     );
   }
 
-  // ------------------------------------------------------------
-  // ⭐ START SCREEN (NEW)
-  // ------------------------------------------------------------
   if (!hasStarted) {
     return (
-      <div className="min-vh-screen flex items-center justify-center p-6">
-        <Card className="p-10 max-w-xl text-center border-teal-700/70 border-2 shadow-lg">
-          <h2 className="text-3xl font-bold text-slate-900 mb-4">
+      <div className="min-h-screen flex items-center justify-center p-4 sm:p-6">
+        <Card className="p-6 sm:p-10 max-w-xl w-full text-center border-teal-700/70 border-2 shadow-lg">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">
             Practice Quiz
           </h2>
 
-          <p className="text-slate-700 mb-6">
+          <p className="text-sm sm:text-base text-slate-700 mb-6">
             This adaptive practice quiz is tailored to your learning profile.
           </p>
 
           <Button
-            className="bg-teal-700 text-white font-bold px-8 py-3 text-lg rounded-lg
+            className="w-full sm:w-auto bg-teal-700 text-white font-bold px-6 sm:px-8 py-3 text-base sm:text-lg rounded-lg
                        hover:bg-teal-800 disabled:bg-slate-400"
             disabled={isLoading}
-            onClick={loadQuiz}  
+            onClick={loadQuiz}
           >
             {isLoading ? "Preparing Quiz..." : "Start Quiz"}
           </Button>
 
-          {error && (
-            <p className="text-red-600 text-sm mt-4">{error}</p>
-          )}
+          {error && <p className="text-red-600 text-xs sm:text-sm mt-4">{error}</p>}
         </Card>
       </div>
     );
@@ -244,31 +225,29 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
 
   if (!questions.length || questions.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-slate-600">
-        No practice questions found.
+      <div className="flex items-center justify-center min-h-screen text-slate-600 px-4">
+        <p className="text-center">No practice questions found.</p>
       </div>
     );
   }
 
-  // ------------------------------------------------------------
-  // 🚀 MAIN QUIZ UI
-  // ------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-white">
-      <div className="px-4 sm:px-6 max-w-4xl mx-auto py-6">
+    <div className="min-h-screen bg-white pb-8">
+      <div className="px-4 sm:px-6 max-w-4xl mx-auto py-4 sm:py-6">
         <QuizProgressBar currentIndex={currentIndex} total={questions.length} />
 
-        <Card className="p-6 border-teal-700/80 border-2 bg-white rounded-xl mb-6">
-          <div className="flex items-start gap-4 mb-4">
+        <Card className="p-4 sm:p-6 border-teal-700/80 border-2 bg-white rounded-xl mb-4 sm:mb-6">
+          <div className="flex items-start gap-3 sm:gap-4 mb-4">
             <Image
               src="/material-symbols_help.svg"
               alt=""
-              width={32}
-              height={32}
+              width={24}
+              height={24}
+              className="sm:w-8 sm:h-8 flex-shrink-0"
               priority
             />
 
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <QuestionBadges question={q} />
 
               {q.question_format === "fill-in-blank" && (
@@ -311,7 +290,7 @@ export function PracticePage({ patternId, onNext }: PracticePageProps) {
                 <Button
                   onClick={handleSubmit}
                   disabled={isSaving}
-                  className="w-full mt-4 bg-teal-700 hover:bg-teal-800 text-white font-bold px-6 py-2 rounded-lg"
+                  className="w-full mt-4 bg-teal-700 hover:bg-teal-800 text-white font-bold px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base"
                 >
                   {isSaving ? "Saving..." : "Submit Answer"}
                 </Button>
