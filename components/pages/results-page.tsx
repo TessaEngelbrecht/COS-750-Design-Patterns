@@ -51,6 +51,13 @@ function fmtHours(totalSeconds: number) {
   return totalSeconds ? `${(totalSeconds / 3600).toFixed(1)}h` : "0h";
 }
 
+// ---- Chart colours (Palette B: soft pastel) ----
+const COLOR_FINAL_BAR = "#5eead4"; // teal-300
+const COLOR_PRACTICE_BAR = "#c4b5fd"; // violet-300
+const COLOR_FINAL_LINE = "#14b8a6"; // teal-500-ish
+const COLOR_PRACTICE_BEFORE_LINE = "#c4b5fd"; // violet-300
+const COLOR_PRACTICE_AFTER_LINE = "#ddd6fe"; // violet-200
+
 // -------------------- Tips for Bloom levels --------------------
 function makeLevelTip(level: BloomLevel): string[] {
   switch (level) {
@@ -111,7 +118,9 @@ export function ResultsPage({
 
   // Fallback practice average from profile if needed
   const practicePctFromProfile =
-    typeof practicePctProp === "number" ? practicePctProp : practicePctDb ?? undefined;
+    typeof practicePctProp === "number"
+      ? practicePctProp
+      : practicePctDb ?? undefined;
 
   useEffect(() => {
     let mounted = true;
@@ -817,11 +826,7 @@ export function ResultsPage({
               <p className="text-lg text-gray-800 font-bold">{status.msg}</p>
             </div>
             <div className="p-4 hidden md:flex">
-              <img
-                src={status.icon}
-                alt="status"
-                className="h-[3rem] w-[3rem]"
-              />
+              <img src={status.icon} alt="status" className="h-[3rem] w-[3rem]" />
             </div>
           </div>
         </Card>
@@ -904,13 +909,14 @@ export function ResultsPage({
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
-                  className="bg-green-500 h-3 rounded-full transition-all duration-500"
+                  className="h-3 rounded-full transition-all duration-500"
                   style={{
                     width: `${
                       typeof effectivePracticePct === "number"
                         ? effectivePracticePct
                         : 0
                     }%`,
+                    backgroundColor: COLOR_PRACTICE_BAR,
                   }}
                 />
               </div>
@@ -922,8 +928,11 @@ export function ResultsPage({
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
-                  className="bg-teal-700 h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${finalPct}%` }}
+                  className="h-3 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${finalPct}%`,
+                    backgroundColor: COLOR_FINAL_BAR,
+                  }}
                 />
               </div>
             </div>
@@ -963,28 +972,34 @@ export function ResultsPage({
                     type="monotone"
                     dataKey="practiceBefore"
                     name="Practice (before final)"
+                    stroke={COLOR_PRACTICE_BEFORE_LINE}
+                    strokeWidth={2}
                     dot
                   />
                   <Line
                     type="monotone"
                     dataKey="practiceAfter"
                     name="Practice (after final)"
+                    stroke={COLOR_PRACTICE_AFTER_LINE}
                     strokeDasharray="4 2"
+                    strokeWidth={2}
                     dot
                   />
                   <Line
                     type="monotone"
                     dataKey="finalScore"
                     name="Final quiz score"
-                    strokeWidth={2}
+                    stroke={COLOR_FINAL_LINE}
+                    strokeWidth={3}
+                    dot={false}
                   />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           )}
           <p className="text-xs text-slate-600 mt-2">
-            Each point represents a completed practice quiz. The final quiz score
-            is shown as a reference line.
+            Each point represents a completed practice quiz. The final quiz score is shown as a
+            reference line.
           </p>
         </Card>
 
@@ -1007,8 +1022,18 @@ export function ResultsPage({
                     <YAxis domain={[0, 100]} />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="practiceScore" name="Practice avg (%)" />
-                    <Bar dataKey="finalScore" name="Final quiz (%)" />
+                    <Bar
+                      dataKey="practiceScore"
+                      name="Practice avg (%)"
+                      fill={COLOR_PRACTICE_BAR}
+                      radius={4}
+                    />
+                    <Bar
+                      dataKey="finalScore"
+                      name="Final quiz (%)"
+                      fill={COLOR_FINAL_BAR}
+                      radius={4}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1032,8 +1057,18 @@ export function ResultsPage({
                     <YAxis domain={[0, 100]} />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="practiceScore" name="Practice avg (%)" />
-                    <Bar dataKey="finalScore" name="Final quiz (%)" />
+                    <Bar
+                      dataKey="practiceScore"
+                      name="Practice avg (%)"
+                      fill={COLOR_PRACTICE_BAR}
+                      radius={4}
+                    />
+                    <Bar
+                      dataKey="finalScore"
+                      name="Final quiz (%)"
+                      fill={COLOR_FINAL_BAR}
+                      radius={4}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1059,9 +1094,7 @@ export function ResultsPage({
                     key={t.label}
                     className="flex items-center justify-between border-b border-slate-100 pb-1"
                   >
-                    <span className="font-medium text-slate-800">
-                      {t.label}
-                    </span>
+                    <span className="font-medium text-slate-800">{t.label}</span>
                     <span className="text-slate-700">
                       {t.score}% ({t.questions} questions)
                     </span>
@@ -1079,9 +1112,7 @@ export function ResultsPage({
           <div className="space-y-5">
             {recommendations.map((rec, i) => (
               <div key={`${rec.title}-${i}`}>
-                <h4 className="font-semibold text-slate-900 mb-1">
-                  {rec.title}
-                </h4>
+                <h4 className="font-semibold text-slate-900 mb-1">{rec.title}</h4>
                 <ul className="list-disc pl-5 text-gray-800 space-y-1">
                   {rec.bullets.map((b, j) => (
                     <li key={j}>{b}</li>
