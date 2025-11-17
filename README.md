@@ -2,10 +2,6 @@
 
 A comprehensive Next.js web application for teaching the Observer design pattern through interactive learning, quizzes, and visual UML diagram building.
 
-## Live Site
-
-https://cos-750-design-patterns.vercel.app
-
 
 ## Team
 
@@ -27,14 +23,14 @@ This application bridges the gap between theoretical understanding and practical
 ## Project Resources
 
 ### Documentation
-- [SRS Document](X) *(Add link here)*
-- [ID document](X) *(Add link here)*
+- [SRS Document](https://drive.google.com/file/d/1f0qGpXgRTF7SGeFAXcx8BT0Y8xywMejV/view?usp=sharing)
+- [ID document](https://drive.google.com/file/d/1D-tXxrqTFmNviuI6_QFi_b7sTG98TiKK/view?usp=sharing) *(Add link here)*
 - [Brainstorm doc](https://docs.google.com/document/d/1Eop76wx5tPSa-NbLFFW49BTACVw--hcbWRLy1aRBQWo/edit?usp=drive_link)
 - [Assignment/Quiz info](https://docs.google.com/document/d/1zTYszqJeDi0885-hs1n1OaBtZ2us5q0UwA6uApQs8Jw/edit?usp=drive_link)
 
 ### Design
 - [Figma Design](https://www.figma.com/design/jnRrF8zGrQ3G2j7xSOSZ7X/Education-Semester-Project?node-id=0-1&t=FUWhgeEpf4nRuzR0-1) 
-- [Canva Presentation (Read-Only)](https://www.canva.com/design/DAG4sCPo8rU/gHPstWzSm50h-G01ihRmDg/edit?utm_content=DAG4sCPo8rU&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton) 
+- [Canva Presentation (Read-Only)](https://www.canva.com/design/DAG45OqRkhs/bJXQwzSyLKb_UNLjyiH6xQ/view?utm_content=DAG45OqRkhs&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=hf6cc028203) 
 
 ## Technology Stack
 
@@ -45,7 +41,6 @@ This application bridges the gap between theoretical understanding and practical
 - **Font**: Poppins from Google Fonts
 - **State Management**: React hooks with localStorage for mock data
 - **UI Components**: shadcn/ui components
--  **Deployment** Vercel
 
 
 ## Key Features
