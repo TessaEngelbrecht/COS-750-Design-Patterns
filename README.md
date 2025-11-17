@@ -24,7 +24,7 @@ This application bridges the gap between theoretical understanding and practical
 
 ### Documentation
 - [SRS Document](https://drive.google.com/file/d/1f0qGpXgRTF7SGeFAXcx8BT0Y8xywMejV/view?usp=sharing)
-- [ID document](https://drive.google.com/file/d/1D-tXxrqTFmNviuI6_QFi_b7sTG98TiKK/view?usp=sharing) *(Add link here)*
+- [ID document](https://drive.google.com/file/d/1D-tXxrqTFmNviuI6_QFi_b7sTG98TiKK/view?usp=sharing)
 - [Brainstorm doc](https://docs.google.com/document/d/1Eop76wx5tPSa-NbLFFW49BTACVw--hcbWRLy1aRBQWo/edit?usp=drive_link)
 - [Assignment/Quiz info](https://docs.google.com/document/d/1zTYszqJeDi0885-hs1n1OaBtZ2us5q0UwA6uApQs8Jw/edit?usp=drive_link)
 
